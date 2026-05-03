@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # The AI Engine
   ollama:
@@ -22,3 +20,4 @@ services:
       - ./data:/app/data
     environment:
       - OLLAMA_HOST=http://ollama:11434
+      - DATA_PATH=/app/data/vector_db
