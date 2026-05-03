@@ -1,0 +1,38 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.venv
+env/
+build/
+dist/
+*.egg-info/
+
+# --- AI & Data (Crucial for your hardware) ---
+# Do not commit the local LLM weights or vector database files
+ollama_data/
+data/
+*.bin
+*.gguf
+*.onnx
+vector_db/
+*.log
+
+# --- Docker ---
+.docker/
+# If you use a local docker-compose override
+docker-compose.override.yml
+
+# --- OS & IDE ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Project Specific ---
+# Ignore uploaded resumes and temporary PDF processing files
+backend/uploads/
+*.pdf
