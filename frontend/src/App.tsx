@@ -1,12 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import {
+  AppShell,
+  ActionIcon,
+  Group,
+  Text,
+  ScrollArea,
+  Avatar,
+  Stack,
+  Container,
+  Box,
+  Textarea,
+  Typography,
+  Loader,
+} from '@mantine/core';
 import { useChat } from './hooks/useChat';
 
-const App: React.FC = () => {
+export default function App() {
   const [input, setInput] = useState('');
   const { messages, sendMessage, isLoading } = useChat();
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check if we are in the "Initial" state
+  const isInitialState = messages.length === 0;
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,63 +43,130 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#131314] text-[#e3e3e3]">
-      <header className="p-4 border-b border-gray-800 flex items-center gap-2">
-        <Sparkles className="text-blue-400" size={20} />
-        <span className="font-semibold text-lg">Resume Intelligence</span>
-      </header>
+    <AppShell
+      header={{ height: 60 }}
+      padding="md"
+      styles={{
+        main: {
+          backgroundColor: '#131314',
+          color: '#e3e3e3',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          padding: 0,
+        },
+      }}
+    >
+      <AppShell.Header p="md" bg="#131314" style={{ borderBottom: '1px solid #2e2e2e' }}>
+        <Group gap="xs">
+          <Sparkles color="#60a5fa" size={20} />
+          <Text fw={600} size="lg">Resume Intelligence</Text>
+        </Group>
+      </AppShell.Header>
 
-      <main className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-3xl mx-auto space-y-10 pt-10">
-          {messages.length === 0 ? (
-            <h1 className="text-4xl font-medium text-center text-gray-500 mt-20">
-              How can I help you today?
-            </h1>
-          ) : (
-            messages.map((msg, i) => (
-              <div key={i} className={`flex gap-5 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                <div
-                  className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                      msg.role === 'user' ? 'bg-purple-600' : 'bg-blue-600'
-                    }`}
-                  >
-                    {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-                  </div>
-                  <div className={`p-1 leading-relaxed prose prose-invert max-w-none`}>
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                </div>
-              </div>
-            ))
+      <AppShell.Main>
+        <Box 
+          style={{ 
+            flex: 1, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: isInitialState ? 'center' : 'flex-end', // Centers content when empty
+            overflow: 'hidden' 
+          }}
+        >
+          {/* ScrollArea only shows when there are messages */}
+          {!isInitialState && (
+            <ScrollArea flex={1} p="md">
+              <Container size="md">
+                <Stack gap="xl">
+                  {messages.map((msg, i) => (
+                    <Group
+                      key={i}
+                      align="flex-start"
+                      justify={msg.role === 'user' ? 'flex-end' : 'flex-start'}
+                    >
+                      <Group
+                        align="flex-start"
+                        gap="md"
+                        style={{
+                          flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                          maxWidth: '85%',
+                        }}
+                      >
+                        <Avatar
+                          radius="xl"
+                          size="md"
+                          color={msg.role === 'user' ? 'purple' : 'blue'}
+                          variant="filled"
+                        >
+                          {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                        </Avatar>
+                        <Box style={{ flex: 1 }}>
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </Box>
+                      </Group>
+                    </Group>
+                  ))}
+                  <div ref={scrollRef} />
+                </Stack>
+              </Container>
+            </ScrollArea>
           )}
-          <div ref={scrollRef} />
-        </div>
-      </main>
 
-      <footer className="p-6">
-        <div className="max-w-3xl mx-auto relative group">
-          <textarea
-            className="w-full bg-[#1e1e1f] border border-transparent focus:border-gray-600 rounded-2xl py-4 pl-6 pr-14 text-lg outline-none resize-none min-h-[60px]"
-            placeholder="Ask about my career..."
-            rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <button
-            disabled={isLoading}
-            onClick={handleSend}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-blue-400 disabled:text-gray-600 transition-colors"
-          >
-            {isLoading ? <Loader2 className="animate-spin" /> : <Send size={24} />}
-          </button>
-        </div>
-      </footer>
-    </div>
+          {/* This Container now moves based on the parent Box's justify-content */}
+          <Container size="md" w="100%" py="xl">
+            {isInitialState && (
+              <Box mb={40}>
+                <Text size="xl" fw={500} ta="center" style={{ fontSize: '2.5rem', color: '#fff' }}>
+                  How can I help you today?
+                </Text>
+              </Box>
+            )}
+            
+            <Box style={{ position: 'relative' }}>
+              <Textarea
+                size="xl" // Increased size for the "middle" look
+                radius="xl"
+                placeholder="Ask about my career..."
+                autosize
+                minRows={1}
+                maxRows={4}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                styles={{
+                  input: {
+                    backgroundColor: '#1e1e1f',
+                    border: '1px solid #3e3e3e',
+                    paddingRight: '50px',
+                    color: '#e3e3e3',
+                    fontSize: '1.1rem',
+                    '&:focus': {
+                      borderColor: '#60a5fa',
+                    },
+                  },
+                }}
+              />
+              <ActionIcon
+                size={40}
+                radius="xl"
+                variant="filled"
+                color="blue"
+                disabled={isLoading || !input.trim()}
+                onClick={handleSend}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  bottom: 8,
+                  zIndex: 2,
+                }}
+              >
+                {isLoading ? <Loader size={18} color="white" /> : <Send size={20} />}
+              </ActionIcon>
+            </Box>
+          </Container>
+        </Box>
+      </AppShell.Main>
+    </AppShell>
   );
-};
-
-export default App;
+}
