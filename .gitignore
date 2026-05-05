@@ -12,7 +12,7 @@ dist/
 
 # --- AI & Data (Crucial for your hardware) ---
 # Do not commit the local LLM weights or vector database files
-ollama_data/
+ollama-data/
 data/
 *.bin
 *.gguf
