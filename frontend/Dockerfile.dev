@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies first to leverage Docker layer caching
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of the source code
+COPY . .
+
+# Expose the port used by Vite/React (usually 5173 or 3000)
+EXPOSE 5173
+
+# Run development server with host binding for Docker access
+CMD ["npm", "run", "dev", "--", "--host"]

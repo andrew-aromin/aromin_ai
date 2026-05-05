@@ -1,5 +1,4 @@
-import { AppShell, Group, Text, ScrollArea, Container, Stack, Box } from '@mantine/core';
-import { Sparkles } from 'lucide-react';
+import { AppShell, ScrollArea, Container, Stack, Box } from '@mantine/core';
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from './hooks/useChat';
 import MessageBubble from './components/MessageBubble';

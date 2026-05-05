@@ -1,5 +1,5 @@
 import { AppShell, Group, Text, Anchor, ActionIcon, Tooltip } from '@mantine/core';
-import { Sparkles, FileText } from 'lucide-react';
+import { Zap, FileText, Linkedin, GitHub } from 'react-feather';
 
 export default function Header() {
   return (
@@ -7,7 +7,7 @@ export default function Header() {
       <Group justify="space-between" h="100%">
         {/* Left Side: Brand/Logo */}
         <Group gap="xs">
-          <Sparkles color="#60a5fa" size={20} />
+          <Zap color="#60a5fa" size={20} />
           <Text fw={600} size="lg" c="white">
             Resume Intelligence
           </Text>
@@ -22,7 +22,9 @@ export default function Header() {
               target="_blank"
               variant="subtle"
               color="gray"
-            ></ActionIcon>
+            >
+              <Linkedin size={20} />
+            </ActionIcon>
           </Tooltip>
 
           <Tooltip label="View GitHub" withArrow>
@@ -32,7 +34,9 @@ export default function Header() {
               target="_blank"
               variant="subtle"
               color="gray"
-            ></ActionIcon>
+            >
+              <GitHub size={20} />
+            </ActionIcon>
           </Tooltip>
 
           <Anchor href="/resume.pdf" target="_blank" underline="never">

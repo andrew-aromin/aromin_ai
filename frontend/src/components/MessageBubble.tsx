@@ -1,5 +1,5 @@
 import { Group, Avatar, Box } from '@mantine/core';
-import { User, Bot } from 'lucide-react';
+import { User, Cpu } from 'react-feather';
 import ReactMarkdown from 'react-markdown';
 import type { Message } from '../types/chat';
 
@@ -21,7 +21,7 @@ export default function MessageBubble({ msg }: MessageBubbleProps) {
         }}
       >
         <Avatar radius="xl" size="md" color={isUser ? 'purple' : 'blue'} variant="filled">
-          {isUser ? <User size={16} /> : <Bot size={16} />}
+          {isUser ? <User size={16} /> : <Cpu size={16} />}
         </Avatar>
         <Box style={{ flex: 1 }}>
           {/* Markdown support is essential for professional LLM responses */}

@@ -1,5 +1,5 @@
 import { Container, Box, Textarea, ActionIcon, Loader, Text } from '@mantine/core';
-import { Send } from 'lucide-react';
+import { Send } from 'react-feather';
 
 interface InputAreaProps {
   input: string;
