@@ -17,7 +17,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data
+      - backend-data:/app/data
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - DATA_PATH=/app/data/vector_db
@@ -33,3 +33,4 @@ services:
 
 volumes:
   ollama-data
+  backend-data
