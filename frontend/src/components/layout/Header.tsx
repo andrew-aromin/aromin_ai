@@ -1,42 +1,40 @@
-import { AppShell, Group, Text, Anchor, ActionIcon, Tooltip } from '@mantine/core';
-import { Zap, FileText, Linkedin, GitHub } from 'react-feather';
+import { AppShell, Group, Text, Anchor, Tooltip } from '@mantine/core';
+import { FileText, Linkedin, GitHub } from 'react-feather';
 
 export default function Header() {
   return (
     <AppShell.Header p="md" style={{ borderBottom: '1px solid #2e2e2e' }}>
       <Group justify="space-between" h="100%">
         {/* Left Side: Brand/Logo */}
-        <Group gap="xs">
-          <Zap color="#60a5fa" size={20} />
-          <Text fw={600} size="lg" c="white">
-            Resume Intelligence
-          </Text>
-        </Group>
-
-        {/* Right Side: External Links */}
         <Group gap="md">
           <Tooltip label="View LinkedIn Profile" withArrow>
-            <ActionIcon
-              component="a"
-              href="https://linkedin.com/in/your-profile"
+            <Anchor
+              href="https://linkedin.com/in/andrew-aromin"
               target="_blank"
-              variant="subtle"
-              color="gray"
+              underline="never"
             >
-              <Linkedin size={20} />
-            </ActionIcon>
+              <Group gap={5} style={{ color: '#60a5fa' }}>
+                <Linkedin size={18} />
+                <Text size="sm" fw={500}>
+                  LinkedIn
+                </Text>
+              </Group>
+            </Anchor>
           </Tooltip>
 
           <Tooltip label="View GitHub" withArrow>
-            <ActionIcon
-              component="a"
-              href="https://github.com/your-username"
+            <Anchor
+              href="https://github.com/andrew-aromin"
               target="_blank"
-              variant="subtle"
-              color="gray"
+              underline="never"
             >
-              <GitHub size={20} />
-            </ActionIcon>
+              <Group gap={5} style={{ color: '#60a5fa' }}>
+                <GitHub size={18} />
+                <Text size="sm" fw={500}>
+                  GitHub
+                </Text>
+              </Group>
+            </Anchor>
           </Tooltip>
 
           <Anchor href="/resume.pdf" target="_blank" underline="never">
