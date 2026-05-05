@@ -4,7 +4,7 @@ services:
     image: ollama/ollama:latest
     container_name: ollama
     volumes:
-      - ./ollama-data:/root/.ollama
+      - ollama-data:/root/.ollama
     ports:
       - "11434:11434"
 
@@ -30,3 +30,6 @@ services:
       - backend
     environment:
       - VITE_API_URL=http://localhost:8000
+
+volumes:
+  ollama-data
