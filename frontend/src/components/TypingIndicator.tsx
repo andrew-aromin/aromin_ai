@@ -14,15 +14,15 @@ export default function TypingIndicator() {
         <Avatar radius="xl" size="md" color="blue" variant="filled">
           <Cpu size={16} />
         </Avatar>
-        <Box 
-          bg="#2e2e2e" 
-          p="sm" 
-          style={{ 
+        <Box
+          bg="#2e2e2e"
+          p="sm"
+          style={{
             borderRadius: '12px',
             display: 'flex',
             gap: '4px',
             alignItems: 'center',
-            minHeight: '40px'
+            minHeight: '40px',
           }}
         >
           <div className="typing-dot" />

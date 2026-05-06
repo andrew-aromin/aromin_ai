@@ -1,5 +1,6 @@
-import { Container, Box, Textarea, ActionIcon, Loader, Text } from '@mantine/core';
+import { Container, Box, Textarea, ActionIcon, Loader } from '@mantine/core';
 import { Send } from 'react-feather';
+import Title from './Title';
 
 interface InputAreaProps {
   input: string;
@@ -27,9 +28,7 @@ export default function UserInput({
     <Container size="md" w="100%" py="xl">
       {isInitial && (
         <Box mb={40}>
-          <Text size="xl" fw={500} ta="center" style={{ fontSize: '2.5rem', color: '#fff' }}>
-            What do you want to know about me?
-          </Text>
+          <Title />
         </Box>
       )}
 
