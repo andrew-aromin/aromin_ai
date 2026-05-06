@@ -2,8 +2,10 @@ import { AppShell, ScrollArea, Container, Stack, Box } from '@mantine/core';
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from './hooks/useChat';
 import MessageBubble from './components/MessageBubble';
+import TypingIndicator from './components/TypingIndicator';
 import InputArea from './components/UserInput';
 import Header from './components/layout/Header';
+import './App.css';
 
 export default function App() {
   const [input, setInput] = useState('');
@@ -13,7 +15,7 @@ export default function App() {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
@@ -21,13 +23,14 @@ export default function App() {
     setInput('');
   };
 
+  const lastMessage = messages[messages.length - 1];
+  const showTyping = isLoading && (!lastMessage || lastMessage.role === 'user');
+
   return (
     <AppShell
       header={{ height: 60 }}
       styles={{
         main: {
-          // backgroundColor: '#131314',
-          // color: '#e3e3e3',
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
@@ -56,6 +59,7 @@ export default function App() {
                   {messages.map((msg, i) => (
                     <MessageBubble key={i} msg={msg} />
                   ))}
+                  {showTyping && <TypingIndicator />}
                   <div ref={scrollRef} />
                 </Stack>
               </Container>

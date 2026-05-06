@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollArea, Container, Stack } from '@mantine/core';
 import type { Message } from '../types/chat';
-import { MessageBubble } from './MessageBubble';
+import MessageBubble from './MessageBubble';
 
 interface ChatWindowProps {
   messages: Message[];

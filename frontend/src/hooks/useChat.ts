@@ -1,16 +1,28 @@
 import { useState } from 'react';
 import type { Message } from '../types/chat';
 
+/**
+ * Custom hook to manage chat state and communication with the backend API.
+ * Handles sending messages, receiving streaming responses, and managing loading states.
+ */
 export const useChat = () => {
+  // State to store the history of messages in the conversation
   const [messages, setMessages] = useState<Message[]>([]);
+  // State to track if a message is currently being processed
   const [isLoading, setIsLoading] = useState(false);
 
+  /**
+   * Sends a user message to the backend and handles the streaming response.
+   * @param prompt The message text entered by the user.
+   */
   const sendMessage = async (prompt: string) => {
+    // 1. Create and add the user's message to the local state
     const userMsg: Message = { role: 'user', content: prompt };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
     try {
+      // 2. Send the message to the backend API
       const response = await fetch(`http://localhost:8000/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -19,29 +31,38 @@ export const useChat = () => {
 
       if (!response.body) throw new Error('No response body');
 
+      // 3. Initialize the stream reader to handle the chunked response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let botContent = '';
+      let isFirstChunk = true;
 
-      // Add empty bot message to be filled by the stream
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
+      // 4. Continuously read chunks from the stream until completion
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
+        // Decode the binary chunk into text
         const chunk = decoder.decode(value, { stream: true });
         botContent += chunk;
 
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1].content = botContent;
-          return newMessages;
-        });
+        if (isFirstChunk) {
+          // On the first chunk, append a new assistant message to the list
+          setMessages((prev) => [...prev, { role: 'assistant', content: botContent }]);
+          isFirstChunk = false;
+        } else {
+          // For subsequent chunks, update the content of the last assistant message
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1].content = botContent;
+            return newMessages;
+          });
+        }
       }
     } catch (error) {
       console.error('Chat Error:', error);
     } finally {
+      // Ensure loading state is reset regardless of success or failure
       setIsLoading(false);
     }
   };
