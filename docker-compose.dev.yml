@@ -5,11 +5,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     container_name: backend-dev
+    env_file:
+      - ./.env.dev
     ports:
       - "8000:8000"
-    environment:
-      - OLLAMA_HOST=http://ollama:11434  # Backend talks to Ollama via service name 
-      - DATABASE_URL=postgresql://user:pass@db:5432/resumedb
     volumes:
       - ./backend:/app  # Hot-reloading for development
     networks:
@@ -23,10 +22,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     container_name: frontend-dev
+    env_file:
+      - ./.env.dev
     ports:
       - "3000:5173"  # Common React convention
-    environment:
-      - VITE_API_URL=http://localhost:8000  # Browser connects to backend via localhost 
     volumes:
       - ./frontend:/app
       - /app/node_modules  # Prevents local node_modules from overwriting container's
@@ -37,6 +36,8 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
+    ports:
+      - "11434:11434"
     volumes:
       - ollama-data-dev:/root/.ollama
     networks:

@@ -5,18 +5,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Configuration ---
-OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-DATA_PATH: str = os.getenv("DATA_PATH", "/app/data/vector_db")
+OLLAMA_HOST: str = os.getenv("OLLAMA_HOST")
+DATA_PATH: str = os.getenv("DATA_PATH")
 
-EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3.2:3b")
+EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL")
+LLM_MODEL: str = os.getenv("LLM_MODEL")
 
 # API Settings
-API_TITLE: str = "Portfolio Intelligence API"
-API_PORT: int = int(os.getenv("API_PORT", "8000"))
-API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
+API_TITLE: str = "Aromin AI"
+API_PORT: int = int(os.getenv("API_PORT"))
+API_HOST: str = os.getenv("API_HOST")
 
-DEFAULT_SYSTEM_PROMPT: str = os.getenv(
-    "DEFAULT_SYSTEM_PROMPT", 
-    "You are a helpful AI assistant representing a candidate."
-)
+DEFAULT_SYSTEM_PROMPT: str = os.getenv("DEFAULT_SYSTEM_PROMPT")

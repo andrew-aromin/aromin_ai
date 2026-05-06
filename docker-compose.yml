@@ -11,26 +11,30 @@ services:
   # The FastAPI Backend
   backend:
     build: ./backend
-    container_name: resumebot-backend
+    container_name: backend
+    env_file:
+      - ./.env
+    # environment:
+    #   OLLAMA_HOST: ${OLLAMA_HOST}
     depends_on:
       - ollama
     ports:
       - "8000:8000"
     volumes:
       - backend-data:/app/data
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
-      - DATA_PATH=/app/data/vector_db
 
   frontend:
     build: ./frontend
+    container_name: frontend
+    # environment:
+    #   VITE_API_URL: ${VITE_API_URL}
+    env_file:
+      - ./.env
     ports:
       - "3000:80"
     depends_on:
       - backend
-    environment:
-      - VITE_API_URL=http://localhost:8000
 
 volumes:
-  ollama-data
-  backend-data
+  ollama-data:
+  backend-data:
