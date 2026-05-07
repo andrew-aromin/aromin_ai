@@ -40,6 +40,8 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data-dev:/root/.ollama
+      - ./ollama_setup.sh:/ollama_setup.sh
+    entrypoint: ["/usr/bin/bash", "/ollama_setup.sh"]
     networks:
       - ai-network
 

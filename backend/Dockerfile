@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# Create a non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup -u 1000 appuser
+
 WORKDIR /app
 
 # Install system dependencies
@@ -12,8 +15,10 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code and set ownership
+COPY --chown=appuser:appgroup . .
+
+USER appuser
 
 EXPOSE 8000
 
