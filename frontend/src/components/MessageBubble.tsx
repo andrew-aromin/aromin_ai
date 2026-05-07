@@ -24,8 +24,17 @@ export default function MessageBubble({ msg }: MessageBubbleProps) {
           {isUser ? <User size={16} /> : <Cpu size={16} />}
         </Avatar>
         <Box style={{ flex: 1 }}>
-          {/* Markdown support is essential for professional LLM responses */}
-          <ReactMarkdown>{msg.content}</ReactMarkdown>
+          {/* Markdown support is essential for professional LLM responses. 
+              We explicitly disable HTML rendering for security. */}
+          <ReactMarkdown
+            components={{
+              a: ({ node, ...props }) => (
+                <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: '#4dabf7' }} />
+              ),
+            }}
+          >
+            {msg.content}
+          </ReactMarkdown>
         </Box>
       </Group>
     </Group>

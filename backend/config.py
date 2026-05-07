@@ -16,4 +16,7 @@ API_TITLE: str = "Aromin AI"
 API_PORT: int = int(os.getenv("API_PORT"))
 API_HOST: str = os.getenv("API_HOST")
 
+# Security
+INGEST_API_KEY: str = os.getenv("INGEST_API_KEY")
+
 DEFAULT_SYSTEM_PROMPT: str = os.getenv("DEFAULT_SYSTEM_PROMPT")

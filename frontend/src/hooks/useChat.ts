@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Message } from '../types/chat';
+import { sanitizeFrontendInput } from '../utils/sanitize';
 
 /**
  * Custom hook to manage chat state and communication with the backend API.
@@ -16,28 +17,44 @@ export const useChat = () => {
    * @param prompt The message text entered by the user.
    */
   const sendMessage = async (prompt: string) => {
-    // 1. Create and add the user's message to the local state
-    const userMsg: Message = { role: 'user', content: prompt };
+    // 1. Sanitize the user input
+    const sanitizedPrompt = sanitizeFrontendInput(prompt);
+    if (!sanitizedPrompt) return;
+
+    // 2. Create and add the user's message to the local state
+    const userMsg: Message = { role: 'user', content: sanitizedPrompt };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
     try {
-      // 2. Send the message to the backend API
-      const response = await fetch(`http://localhost:8000/api/chat`, {
+      // 3. Send the message to the backend API
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiBaseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: prompt }),
+        body: JSON.stringify({ message: sanitizedPrompt }),
       });
+
+      if (response.status === 429) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: 'You are submitting too many requests. Please wait a moment and try again.',
+          },
+        ]);
+        return;
+      }
 
       if (!response.body) throw new Error('No response body');
 
-      // 3. Initialize the stream reader to handle the chunked response
+      // 4. Initialize the stream reader to handle the chunked response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let botContent = '';
       let isFirstChunk = true;
 
-      // 4. Continuously read chunks from the stream until completion
+      // 5. Continuously read chunks from the stream until completion
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;

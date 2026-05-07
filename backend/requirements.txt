@@ -8,3 +8,5 @@ langchain-chroma==1.1.0
 python-multipart==0.0.27
 pypdf==6.10.2
 python-dotenv==1.0.1
+bleach==6.1.0
+slowapi==0.1.9
