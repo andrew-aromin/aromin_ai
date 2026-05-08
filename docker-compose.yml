@@ -11,6 +11,8 @@ services:
     entrypoint: ["/usr/bin/bash", "/ollama_setup.sh"]
     ports:
       - "11434:11434"
+    networks:
+      - lan
 
   # The FastAPI Backend
   backend:
@@ -24,6 +26,8 @@ services:
       - "8000:8000"
     volumes:
       - backend-data:/app/data
+    networks:
+      - lan
 
   frontend:
     build: ./frontend
@@ -34,6 +38,12 @@ services:
       - "3000:8080"
     depends_on:
       - backend
+    networks:
+      - lan
+
+networks:
+  lan:
+    external: true
 
 volumes:
   ollama-data:
