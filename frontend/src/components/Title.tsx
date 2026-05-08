@@ -1,4 +1,4 @@
-import { Text, Avatar, Group, Stack } from '@mantine/core';
+import { Text, Avatar, Stack } from '@mantine/core';
 
 export default function Title() {
   return (
