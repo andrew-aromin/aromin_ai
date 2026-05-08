@@ -15,7 +15,7 @@ services:
   # The FastAPI Backend
   backend:
     build: ./backend
-    container_name: backend
+    container_name: aromin_ai-backend
     env_file:
       - ./.env
     depends_on:
@@ -27,7 +27,7 @@ services:
 
   frontend:
     build: ./frontend
-    container_name: frontend
+    container_name: aromin_ai-frontend
     env_file:
       - ./.env
     ports:
