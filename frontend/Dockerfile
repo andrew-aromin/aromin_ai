@@ -4,6 +4,10 @@ FROM node:20-slim AS build
 # Set the working directory
 WORKDIR /app
 
+ARG VITE_API_BASE_URL
+# Set it as an environment variable so Vite can see it during build
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
