@@ -11,39 +11,20 @@ services:
     entrypoint: ["/usr/bin/bash", "/ollama_setup.sh"]
     ports:
       - "11434:11434"
-    networks:
-      - lan
 
-  # The FastAPI Backend
-  backend:
-    build: ./backend
-    container_name: aromin_ai-backend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aromin_ai-app
     env_file:
       - ./.env
     depends_on:
       - ollama
     ports:
-      - "8000:8000"
+      - "3000:80"
     volumes:
-      - backend-data:/app/data
-    networks:
-      - lan
-
-  frontend:
-    build: ./frontend
-    container_name: aromin_ai-frontend
-    env_file:
-      - ./.env
-    ports:
-      - "3000:8080"
-    depends_on:
-      - backend
-    networks:
-      - lan
-
-networks:
-  lan:
-    external: true
+      - backend-data:/app/backend/data
 
 volumes:
   ollama-data:

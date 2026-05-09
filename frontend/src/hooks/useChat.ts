@@ -28,7 +28,8 @@ export const useChat = () => {
 
     try {
       // 3. Send the message to the backend API
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      // Use nullish coalescing to allow empty string (relative path)
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
       const response = await fetch(`${apiBaseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
