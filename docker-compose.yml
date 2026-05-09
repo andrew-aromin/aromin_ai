@@ -24,8 +24,7 @@ services:
     env_file:
       - .env
     depends_on:
-      ollama:
-        condition: service_healthy
+      - ollama
     volumes:
       - backend-data:/app/data
     restart: always
