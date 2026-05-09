@@ -11,18 +11,26 @@ until ollama list > /dev/null 2>&1; do
   sleep 1
 done
 
-# Pull models sequentially
-echo "Ollama is ready. Pulling models..."
-echo "Pulling llama3.2:3b..."
-ollama pull llama3.2:3b
-echo "Pulling nomic-embed-text..."
-ollama pull nomic-embed-text
+# Check and pull models if they don't exist
+pull_if_missing() {
+    local model=$1
+    if ollama list | grep -q "$model"; then
+        echo "Model '$model' already exists. Skipping pull."
+    else
+        echo "Pulling '$model'..."
+        ollama pull "$model"
+    fi
+}
+
+echo "Ollama is ready. Checking models..."
+pull_if_missing "llama3.2:3b"
+pull_if_missing "nomic-embed-text"
 
 # Shut down the temporary server
-echo "Models pulled successfully. Stopping temporary server..."
+echo "Setup complete. Stopping temporary server..."
 kill $TEMP_SERVER_PID
 wait $TEMP_SERVER_PID
 
 # Start the final Ollama server in the foreground
-echo "All models downloaded. Starting Ollama server..."
+echo "Starting Ollama server..."
 exec ollama serve
