@@ -36,6 +36,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: aromin_ai-frontend
+    env_file:
+      - .env
     restart: always
 
   # Reverse Proxy (Nginx Gateway)
