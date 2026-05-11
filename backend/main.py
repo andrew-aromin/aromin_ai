@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Any
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -52,14 +53,20 @@ async def ingest_resume(request: Request, file: UploadFile = File(...)) -> Dict[
 @app.post("/api/chat")
 @limiter.limit("20/minute")
 async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse:
-    """Endpoint to chat with the RAG-enabled LLM."""
+    """Endpoint to chat with the RAG-enabled LLM using SSE."""
     sanitized_message = sanitize_input(chat_request.message)
     if not sanitized_message:
         raise HTTPException(status_code=400, detail="Empty or invalid message.")
 
+    async def event_generator():
+        async for chunk in manager.chat_stream(sanitized_message):
+            # SSE format with JSON-encoded data for robustness
+            # "data: \"chunk_text\"\n\n"
+            yield f"data: {json.dumps(chunk)}\n\n"
+
     return StreamingResponse(
-        manager.chat_stream(sanitized_message), 
-        media_type="text/plain"
+        event_generator(),
+        media_type="text/event-stream"
     )
 
 if __name__ == "__main__":

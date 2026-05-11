@@ -54,27 +54,49 @@ export const useChat = () => {
       const decoder = new TextDecoder();
       let botContent = '';
       let isFirstChunk = true;
+      let partialLine = '';
 
       // 5. Continuously read chunks from the stream until completion
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        // Decode the binary chunk into text
+        // Decode the binary chunk into text and split by newlines
         const chunk = decoder.decode(value, { stream: true });
-        botContent += chunk;
+        const lines = (partialLine + chunk).split('\n');
+        
+        // The last element might be a partial line, save it for the next iteration
+        partialLine = lines.pop() || '';
 
-        if (isFirstChunk) {
-          // On the first chunk, append a new assistant message to the list
-          setMessages((prev) => [...prev, { role: 'assistant', content: botContent }]);
-          isFirstChunk = false;
-        } else {
-          // For subsequent chunks, update the content of the last assistant message
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1].content = botContent;
-            return newMessages;
-          });
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          // SSE lines start with "data: "
+          if (trimmedLine.startsWith('data:')) {
+            // Extract the data content (strip "data:" prefix)
+            const rawData = trimmedLine.slice(5).trim();
+            if (!rawData) continue;
+
+            try {
+              // Parse the JSON-encoded data chunk
+              const data = JSON.parse(rawData);
+              botContent += data;
+
+              if (isFirstChunk) {
+                // On the first valid data chunk, append a new assistant message to the list
+                setMessages((prev) => [...prev, { role: 'assistant', content: botContent }]);
+                isFirstChunk = false;
+              } else {
+                // For subsequent chunks, update the content of the last assistant message
+                setMessages((prev) => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1].content = botContent;
+                  return newMessages;
+                });
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e, rawData);
+            }
+          }
         }
       }
     } catch (error) {

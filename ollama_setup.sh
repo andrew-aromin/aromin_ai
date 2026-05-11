@@ -23,7 +23,7 @@ pull_if_missing() {
 }
 
 echo "Ollama is ready. Checking models..."
-pull_if_missing "llama3.2:3b"
+pull_if_missing "gemma3n:e4b"
 pull_if_missing "nomic-embed-text"
 
 # Shut down the temporary server
