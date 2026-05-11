@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Dict, Any
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -12,6 +13,10 @@ import uvicorn
 from config import API_TITLE, API_HOST, API_PORT
 from services import manager
 from utils import sanitize_input, verify_ingest_key
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -59,14 +64,27 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
         raise HTTPException(status_code=400, detail="Empty or invalid message.")
 
     async def event_generator():
-        async for chunk in manager.chat_stream(sanitized_message):
-            # SSE format with JSON-encoded data for robustness
-            # "data: \"chunk_text\"\n\n"
-            yield f"data: {json.dumps(chunk)}\n\n"
+        try:
+            async for chunk in manager.chat_stream(sanitized_message):
+                # Check for client disconnection to stop generation early
+                if await request.is_disconnected():
+                    logger.info("Client disconnected, stopping stream.")
+                    break
+                
+                # SSE format: data: <content>\n\n
+                yield f"data: {json.dumps(chunk)}\n\n"
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(
         event_generator(),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Critical for Nginx
+        }
     )
 
 if __name__ == "__main__":

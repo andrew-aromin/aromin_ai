@@ -79,7 +79,13 @@ export const useChat = () => {
             try {
               // Parse the JSON-encoded data chunk
               const data = JSON.parse(rawData);
-              botContent += data;
+              
+              // Handle error objects from the backend
+              if (data && typeof data === 'object' && data.error) {
+                botContent += `\nError: ${data.error}`;
+              } else {
+                botContent += data;
+              }
 
               if (isFirstChunk) {
                 // On the first valid data chunk, append a new assistant message to the list

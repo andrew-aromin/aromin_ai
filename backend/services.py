@@ -32,7 +32,7 @@ class VectorStoreManager:
     """
     _instance: Optional["VectorStoreManager"] = None
     embeddings: OllamaEmbeddings
-    client: ollama.Client
+    client: ollama.AsyncClient
     vector_db: Optional[Chroma]
 
     def __new__(cls) -> "VectorStoreManager":
@@ -48,7 +48,7 @@ class VectorStoreManager:
             model=EMBEDDING_MODEL,
             base_url=OLLAMA_HOST
         )
-        self.client = ollama.Client(host=OLLAMA_HOST)
+        self.client = ollama.AsyncClient(host=OLLAMA_HOST)
         self.vector_db = None
         self._load_db()
 
@@ -125,7 +125,7 @@ class VectorStoreManager:
             system_prompt: str = f"{DEFAULT_SYSTEM_PROMPT}\n\nContext: {context}"
 
             # Stream the chat response from Ollama
-            response: Any = self.client.chat(
+            response = await self.client.chat(
                 model=LLM_MODEL,
                 messages=[
                     {'role': 'system', 'content': system_prompt},
@@ -134,7 +134,7 @@ class VectorStoreManager:
                 stream=True,
             )
 
-            for chunk in response:
+            async for chunk in response:
                 yield chunk['message']['content']
 
         except Exception as e:
