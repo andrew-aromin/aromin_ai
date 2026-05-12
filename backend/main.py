@@ -12,7 +12,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import uvicorn
 
-from config import API_TITLE, API_HOST, API_PORT, ALLOWED_ORIGINS
+from config import API_TITLE, API_HOST, API_PORT
 from services import manager
 from utils import sanitize_input, verify_ingest_key
 
@@ -67,30 +67,40 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
 
     async def event_generator():
         try:
-            # Task to stream from Ollama
-            stream_task = asyncio.create_task(manager.chat_stream(sanitized_message).__aiter__())
+            # Get the async iterator from the generator
+            gen = manager.chat_stream(sanitized_message).__aiter__()
+            # Create a task for the first chunk
+            chunk_task = asyncio.create_task(gen.__anext__())
             
             while True:
-                # Wait for a chunk from Ollama or a timeout for keep-alive
-                try:
-                    # Short timeout to allow sending keep-alive "pings"
-                    chunk_iter = await asyncio.wait_for(stream_task.__anext__(), timeout=15.0)
-                    yield f"data: {json.dumps(chunk_iter)}\n\n"
-                except asyncio.TimeoutError:
-                    # Send an SSE comment as a keep-alive ping
+                # Wait for the chunk task to complete or timeout for keep-alive
+                done, pending = await asyncio.wait(
+                    {chunk_task},
+                    timeout=15.0,
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                
+                if chunk_task in done:
+                    try:
+                        chunk = chunk_task.result()
+                        yield f"data: {json.dumps(chunk)}\n\n"
+                        # Prepare the task for the next chunk
+                        chunk_task = asyncio.create_task(gen.__anext__())
+                    except StopAsyncIteration:
+                        break
+                else:
+                    # Timeout reached, send an SSE comment as a keep-alive ping
                     if await request.is_disconnected():
                         break
                     yield ": ping\n\n"
-                except StopAsyncIteration:
-                    break
-                except Exception as e:
-                    logger.error(f"Streaming error in generator: {e}")
-                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
-                    break
 
         except Exception as e:
-            logger.error(f"Outer streaming error: {e}")
+            logger.error(f"Streaming error: {e}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        finally:
+            # Ensure the pending task is cancelled if we exit the loop
+            if 'chunk_task' in locals() and not chunk_task.done():
+                chunk_task.cancel()
 
     return StreamingResponse(
         event_generator(),
