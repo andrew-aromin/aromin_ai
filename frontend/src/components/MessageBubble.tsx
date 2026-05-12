@@ -28,8 +28,13 @@ export default function MessageBubble({ msg }: MessageBubbleProps) {
               We explicitly disable HTML rendering for security. */}
           <ReactMarkdown
             components={{
-              a: ({ node, ...props }) => (
-                <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: '#4dabf7' }} />
+              a: ({ ...props }) => (
+                <a
+                  {...props}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#4dabf7' }}
+                />
               ),
             }}
           >

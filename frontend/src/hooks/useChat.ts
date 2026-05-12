@@ -64,7 +64,7 @@ export const useChat = () => {
         // Decode the binary chunk into text and split by newlines
         const chunk = decoder.decode(value, { stream: true });
         const lines = (partialLine + chunk).split('\n');
-        
+
         // The last element might be a partial line, save it for the next iteration
         partialLine = lines.pop() || '';
 
@@ -79,7 +79,7 @@ export const useChat = () => {
             try {
               // Parse the JSON-encoded data chunk
               const data = JSON.parse(rawData);
-              
+
               // Handle error objects from the backend
               if (data && typeof data === 'object' && data.error) {
                 botContent += `\nError: ${data.error}`;

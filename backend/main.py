@@ -1,8 +1,7 @@
 import json
 import logging
-import os
 import asyncio
-from typing import Dict, Any
+from typing import Dict
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,27 +34,35 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-    ],    allow_credentials=True,
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 class ChatRequest(BaseModel):
     message: str
 
+
 @app.post("/api/ingest", dependencies=[Depends(verify_ingest_key)])
 @limiter.limit("5/minute")
-async def ingest_resume(request: Request, file: UploadFile = File(...)) -> Dict[str, str]:
+async def ingest_file(
+    request: Request, file: UploadFile = File(...)
+) -> Dict[str, str]:
     """Endpoint to upload a PDF, chunk it, and store it in the Vector DB."""
     if not file.filename or not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
-    
+
     try:
         num_chunks: int = manager.ingest_pdf(file)
         sanitized_filename = sanitize_input(file.filename)
-        return {"message": f"Successfully ingested {num_chunks} chunks from {sanitized_filename}"}
+        return {
+            "message": f"Successfully ingested {num_chunks} chunks from {sanitized_filename}"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/chat")
 @limiter.limit("20/minute")
@@ -71,15 +78,13 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
             gen = manager.chat_stream(sanitized_message).__aiter__()
             # Create a task for the first chunk
             chunk_task = asyncio.create_task(gen.__anext__())
-            
+
             while True:
                 # Wait for the chunk task to complete or timeout for keep-alive
                 done, pending = await asyncio.wait(
-                    {chunk_task},
-                    timeout=15.0,
-                    return_when=asyncio.FIRST_COMPLETED
+                    {chunk_task}, timeout=15.0, return_when=asyncio.FIRST_COMPLETED
                 )
-                
+
                 if chunk_task in done:
                     try:
                         chunk = chunk_task.result()
@@ -99,7 +104,7 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         finally:
             # Ensure the pending task is cancelled if we exit the loop
-            if 'chunk_task' in locals() and not chunk_task.done():
+            if "chunk_task" in locals() and not chunk_task.done():
                 chunk_task.cancel()
 
     return StreamingResponse(
@@ -108,9 +113,10 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Critical for Nginx
-        }
+            "X-Accel-Buffering": "no",
+        },
     )
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host=API_HOST, port=API_PORT)

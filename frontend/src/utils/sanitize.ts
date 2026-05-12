@@ -7,7 +7,7 @@ import DOMPurify from 'dompurify';
  */
 export const sanitizeFrontendInput = (input: string): string => {
   if (!input) return '';
-  
+
   // Clean the input and trim whitespace
   return DOMPurify.sanitize(input, {
     USE_PROFILES: { html: true },

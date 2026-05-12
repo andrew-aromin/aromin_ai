@@ -7,12 +7,7 @@ export default function Title() {
         <Text size="3.5rem" fw={500} color="white">
           Hi, I'm Andrew.
         </Text>
-        <Avatar
-          src="/avatar.png"
-          alt="Andrew Aromin"
-          radius="xl"
-          size="10rem"
-        />
+        <Avatar src="/avatar.png" alt="Andrew Aromin" radius="xl" size="10rem" />
       </Stack>
       <Text size="xl" fw={500} ta="center" color={'white'}>
         I built this project with React, FastAPI, and Ollama. This agent leverages local LLM
