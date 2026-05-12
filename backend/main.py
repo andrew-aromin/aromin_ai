@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+import asyncio
 from typing import Dict, Any
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -10,7 +12,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import uvicorn
 
-from config import API_TITLE, API_HOST, API_PORT
+from config import API_TITLE, API_HOST, API_PORT, ALLOWED_ORIGINS
 from services import manager
 from utils import sanitize_input, verify_ingest_key
 
@@ -25,6 +27,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Enable CORS for frontend communication
+# Allow origins from configuration or default to localhost for development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -32,8 +35,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    ],    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -65,16 +67,29 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
 
     async def event_generator():
         try:
-            async for chunk in manager.chat_stream(sanitized_message):
-                # Check for client disconnection to stop generation early
-                if await request.is_disconnected():
-                    logger.info("Client disconnected, stopping stream.")
+            # Task to stream from Ollama
+            stream_task = asyncio.create_task(manager.chat_stream(sanitized_message).__aiter__())
+            
+            while True:
+                # Wait for a chunk from Ollama or a timeout for keep-alive
+                try:
+                    # Short timeout to allow sending keep-alive "pings"
+                    chunk_iter = await asyncio.wait_for(stream_task.__anext__(), timeout=15.0)
+                    yield f"data: {json.dumps(chunk_iter)}\n\n"
+                except asyncio.TimeoutError:
+                    # Send an SSE comment as a keep-alive ping
+                    if await request.is_disconnected():
+                        break
+                    yield ": ping\n\n"
+                except StopAsyncIteration:
                     break
-                
-                # SSE format: data: <content>\n\n
-                yield f"data: {json.dumps(chunk)}\n\n"
+                except Exception as e:
+                    logger.error(f"Streaming error in generator: {e}")
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                    break
+
         except Exception as e:
-            logger.error(f"Streaming error: {e}")
+            logger.error(f"Outer streaming error: {e}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(
