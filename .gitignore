@@ -36,3 +36,4 @@ docker-compose.override.yml
 # Ignore uploaded resumes and temporary PDF processing files
 backend/uploads/
 *.pdf
+node_modules/
