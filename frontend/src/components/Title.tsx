@@ -1,4 +1,4 @@
-import { Text, Avatar, Stack } from '@mantine/core';
+import { Text, Avatar, Stack, Anchor, Divider, Space } from '@mantine/core';
 
 export default function Title() {
   return (
@@ -10,8 +10,15 @@ export default function Title() {
         <Avatar src="/avatar.png" alt="Andrew Aromin" radius="xl" size="10rem" />
       </Stack>
       <Text size="xl" fw={500} ta="center" color={'white'}>
-        I built this project with React, FastAPI, and Ollama. This agent leverages local LLM
-        orchestration to provide answers about my career in software engineering. Ask it anything!
+        Ask questions about my software engineering career and background. Built using React, FastAPI, and Ollama with local LLM orchestration. 
+        <Divider my="xs" />
+        <Text fs="italic">Note: Hosted on low-power hardware; response generation may take a moment.</Text>
+        <Space h="xs" />
+        Source Code: <Anchor href="https://github.com/andrew-aromin/aromin_ai" target="_blank">
+          <Text size="lg" fw={500}>
+            Aromin AI
+          </Text>
+        </Anchor>
       </Text>
     </>
   );
