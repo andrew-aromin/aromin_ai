@@ -3,7 +3,7 @@ import { Text, Avatar, Stack, Anchor, Divider, Space } from '@mantine/core';
 export default function Title() {
   return (
     <>
-      <Stack justify="center" align="center" gap="md" pb="md">
+      <Stack justify="center" align="center" gap="xs" pb="0">
         <Text size="3.5rem" fw={500} color="white">
           Hi, I'm Andrew.
         </Text>

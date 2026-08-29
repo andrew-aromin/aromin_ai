@@ -25,7 +25,7 @@ export default function UserInput({
   };
 
   return (
-    <Container size="md" w="100%" py="xl">
+    <Container size="md" w="100%" py="xs">
       {isInitial && (
         <Box mb={40}>
           <Title />

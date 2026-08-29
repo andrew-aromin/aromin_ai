@@ -3,6 +3,8 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
+    env_file:
+      - .env
     environment:
       - HOME=/home/ubuntu
     volumes:
@@ -14,6 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - lan
 
   # Backend API (FastAPI)
   backend:
@@ -28,6 +32,8 @@ services:
     volumes:
       - backend-data:/app/data
     restart: always
+    networks:
+      - lan
 
   # Frontend (Nginx serving static files)
   frontend:
@@ -38,6 +44,8 @@ services:
     env_file:
       - .env
     restart: always
+    networks:
+      - lan
 
   # Reverse Proxy (Nginx Gateway)
   nginx:
@@ -51,6 +59,12 @@ services:
       - backend
       - frontend
     restart: always
+    networks:
+      - lan
+
+networks:
+  lan:
+    external: true
 
 volumes:
   ollama-data:

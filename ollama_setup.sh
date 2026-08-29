@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Load environment variables if .env exists
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+fi
+
+LLM_MODEL=${LLM_MODEL:-"phi3:mini"}
+EMBEDDING_MODEL=${EMBEDDING_MODEL:-"nomic-embed-text"}
+
 # Start a temporary Ollama server in the background for setup
 echo "Starting temporary Ollama server..."
 ollama serve &
@@ -23,8 +31,8 @@ pull_if_missing() {
 }
 
 echo "Ollama is ready. Checking models..."
-pull_if_missing "gemma3n:e2b"
-pull_if_missing "nomic-embed-text"
+pull_if_missing "$LLM_MODEL"
+pull_if_missing "$EMBEDDING_MODEL"
 
 # Shut down the temporary server
 echo "Setup complete. Stopping temporary server..."
