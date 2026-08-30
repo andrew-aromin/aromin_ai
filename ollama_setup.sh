@@ -5,8 +5,13 @@ if [ -f .env ]; then
   export $(grep -v '^#' .env | xargs)
 fi
 
-LLM_MODEL=${LLM_MODEL:-"phi3:mini"}
-EMBEDDING_MODEL=${EMBEDDING_MODEL:-"nomic-embed-text"}
+LLM_MODEL=${1:-$LLM_MODEL}
+EMBEDDING_MODEL=${2:-${EMBEDDING_MODEL:-"nomic-embed-text"}}
+
+if [ -z "$LLM_MODEL" ]; then
+  echo "Error: LLM_MODEL parameter is required." >&2
+  exit 1
+fi
 
 # Start a temporary Ollama server in the background for setup
 echo "Starting temporary Ollama server..."

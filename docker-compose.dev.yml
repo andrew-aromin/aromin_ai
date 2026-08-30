@@ -1,53 +1,76 @@
 services:
-  # Python/FastAPI Backend
+  # The AI Engine
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    env_file:
+      - .env
+    environment:
+      - HOME=/home/ubuntu
+    volumes:
+      - ollama-data:/home/ubuntu/.ollama
+      - ./ollama_setup.sh:/ollama_setup.sh
+    entrypoint: ["/usr/bin/bash", "/ollama_setup.sh"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev
+
+  # Backend API (FastAPI) — hot reload with uvicorn --reload
   backend:
-    build: 
+    build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: aromin_ai-backend-dev
     env_file:
-      - ./.env.dev
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app  # Hot-reloading for development
-    networks:
-      - ai-network
+      - .env
     depends_on:
       - ollama
+    volumes:
+      - ./backend:/app
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    restart: unless-stopped
+    networks:
+      - dev
 
-  # React + Vite Frontend
+  # Frontend (Vite dev server) — hot reload with HMR
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
     container_name: aromin_ai-frontend-dev
     env_file:
-      - ./.env.dev
-    ports:
-      - "3000:5173"  # Common React convention
+      - .env
     volumes:
       - ./frontend:/app
-      - /app/node_modules  # Prevents local node_modules from overwriting container's
+      - frontend-node-modules:/app/node_modules
+    command: ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]
+    restart: unless-stopped
     networks:
-      - ai-network
+      - dev
 
-  # Local LLM Engine
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
+  # Reverse Proxy (Nginx Gateway) — uses dev config with HMR support
+  nginx:
+    image: nginx:alpine
+    container_name: aromin_ai-gateway-dev
     ports:
-      - "11434:11434"
+      - "3002:80"
     volumes:
-      - ollama-data-dev:/root/.ollama
-      - ./ollama_setup.sh:/ollama_setup.sh
-    entrypoint: ["/usr/bin/bash", "/ollama_setup.sh"]
+      - ./nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
     networks:
-      - ai-network
+      - dev
 
 networks:
-  ai-network:
-    driver: bridge  # Isolates AI services from public internet where possible 
+  dev:
+    driver: bridge
 
 volumes:
-  ollama-data-dev:
+  ollama-data:
+  frontend-node-modules:
