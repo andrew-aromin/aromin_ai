@@ -26,3 +26,28 @@
 .typing-dot:nth-child(2) {
   animation-delay: -0.16s;
 }
+
+.hero-avatar {
+  --avatar-size: 6.5rem;
+  width: var(--avatar-size) !important;
+  height: var(--avatar-size) !important;
+  min-width: var(--avatar-size) !important;
+}
+
+@media (min-width: 768px) {
+  .hero-avatar {
+    --avatar-size: 8.5rem;
+  }
+}
+
+@media (min-width: 992px) {
+  .hero-avatar {
+    --avatar-size: 11.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .hero-avatar {
+    --avatar-size: 13rem;
+  }
+}

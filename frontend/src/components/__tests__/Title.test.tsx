@@ -19,7 +19,7 @@ describe('Title Component', () => {
   it('renders the description text correctly', () => {
     render(<Title />);
     const descriptionText = screen.getByText(
-      /I built this project with React, FastAPI, and Ollama/i
+      /Built using React, FastAPI, and Ollama/i
     );
     expect(descriptionText).toBeInTheDocument();
   });

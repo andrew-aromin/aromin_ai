@@ -35,6 +35,8 @@ export default function App() {
           flexDirection: 'column',
           height: '100vh',
           padding: 0,
+          paddingTop: 60,
+          boxSizing: 'border-box',
         },
       }}
     >
@@ -49,7 +51,9 @@ export default function App() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: isInitialState ? 'center' : 'flex-end',
-            overflow: 'hidden',
+            overflowY: 'auto',
+            padding: '1rem 0',
+            boxSizing: 'border-box',
           }}
         >
           {!isInitialState && (
