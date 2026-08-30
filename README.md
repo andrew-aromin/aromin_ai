@@ -1,67 +1,51 @@
-# Aromin AI
+# Aromin AI: My Personal Career AI
 
-A **self-hosted, privacy-first AI chatbot** powered by [Ollama](https://ollama.com) and Retrieval-Augmented Generation (RAG). Upload your own PDF documents and chat with an LLM that answers questions grounded in that content — all running locally, with no data leaving your machine.
+Aromin AI is a **self-hosted, privacy-first AI chatbot** designed specifically for **recruiters and hiring managers** to ask questions about my career, experience, and life. Powered by local LLMs via Ollama and Retrieval-Augmented Generation (RAG), it allows users to interact with my resume and other professional documents as if they were talking directly to me. 
+
+Because it runs entirely on local hardware, all interactions remain private and no data is ever sent to third-party APIs.
+
+---
+
+## What This Is
+
+At its core, Aromin AI is an interactive, AI-powered representation of my professional background. Instead of just reading a static resume, recruiters and hiring managers can ask natural questions and get immediate, context-aware answers grounded in my actual documents.
+
+Key features include:
+- **100% Local Execution**: Runs entirely on your own hardware using Docker and Ollama.
+- **Document Grounding (RAG)**: The AI's responses are based specifically on the PDFs you upload.
+- **Real-time Streaming**: Responses stream in real-time.
+- **Secure by Default**: The ingestion API is protected by a mandatory API key.
 
 ---
 
 ## How It Works
 
-```
-User ---> React UI ---> FastAPI backend ---> Ollama (local LLM)
-                              |
-                              v
-                      ChromaDB (vector store)
-                      <-- PDF ingestion pipeline
+Aromin AI uses a modern, full-stack architecture to process documents and serve chat responses:
+
+```mermaid
+flowchart TD
+    User([User]) -->|Interacts| UI[React / Vite Frontend]
+    UI -->|API Requests| API[FastAPI Backend]
+    API -->|Sends Prompts| LLM[Ollama Local LLM]
+    API -->|Embeds & Searches| VDB[(ChromaDB Vector Store)]
+    PDF([PDF Upload]) -->|Ingest API| API
 ```
 
-1. **Ingest** — Upload a PDF via the `/api/ingest` endpoint. The backend splits it into overlapping chunks, embeds them with `nomic-embed-text`, and stores them in a persistent ChromaDB vector database.
-2. **Chat** — Send a message to `/api/chat`. The backend retrieves the top-3 most relevant chunks from the vector DB, injects them as context into the system prompt, then streams a response from `gemma3n:e2b` back to the frontend via Server-Sent Events (SSE).
-3. **Display** — The React/Vite frontend renders the streamed response in real time.
+1. **Document Ingestion**: When you upload a PDF, the backend extracts the text, splits it into smaller overlapping chunks, and converts those chunks into numerical embeddings using Ollama (`nomic-embed-text`). These embeddings are stored locally in a ChromaDB vector database.
+2. **Retrieval**: When you ask a question, your prompt is converted into an embedding. The backend searches ChromaDB for the most relevant chunks of text from your uploaded documents.
+3. **Generation**: The backend combines your original question with the retrieved document chunks and sends them to the local LLM (`gemma3n:e2b` via Ollama) with a system prompt instructing the AI to answer based *only* on the provided context.
+4. **Streaming Response**: The LLM generates the answer, which is streamed back through the backend to the React frontend in real-time via Server-Sent Events (SSE).
 
 ---
 
-## Tech Stack
+## How to Set It Up Locally
 
-| Layer | Technology |
-|---|---|
-| LLM & Embeddings | [Ollama](https://ollama.com) (`gemma3n:e2b`, `nomic-embed-text`) |
-| Vector Database | [ChromaDB](https://www.trychroma.com/) (persisted to disk) |
-| Backend | Python · [FastAPI](https://fastapi.tiangolo.com/) · LangChain |
-| Frontend | TypeScript · [React](https://react.dev/) · [Vite](https://vite.dev/) |
-| Reverse Proxy | [Nginx](https://nginx.org/) |
-| Containerization | [Docker](https://www.docker.com/) + Docker Compose |
+### Prerequisites
 
----
-
-## Project Structure
-
-```
-aromin_ai/
-├── backend/            # FastAPI application
-│   ├── main.py         # API routes (chat, ingest)
-│   ├── services.py     # VectorStoreManager singleton (RAG logic)
-│   ├── config.py       # Environment variable loading
-│   ├── utils.py        # Input sanitization & API key auth
-│   └── requirements.txt
-├── frontend/           # React + Vite application
-│   └── src/
-├── docker-compose.yml      # Production stack
-├── docker-compose.dev.yml  # Development stack (hot-reload)
-├── nginx.conf              # Reverse proxy configuration
-├── ollama_setup.sh         # Pulls required models on first run
-└── .env.example            # Environment variable template
-```
-
----
-
-## Prerequisites
-
+Before you begin, ensure you have the following installed on your machine:
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- ~4 GB of free disk space (for the Ollama models)
-
----
-
-## Setup
+- At least 4 GB of free disk space (to download the local AI models)
+- Git
 
 ### 1. Clone the repository
 
@@ -70,85 +54,66 @@ git clone <your-repo-url>
 cd aromin_ai
 ```
 
-### 2. Configure environment variables
+### 2. Configure Environment Variables
+
+Copy the example environment file to create your own `.env` file:
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in the required values:
+Open `.env` in a text editor. You **must** set the following variables:
+- `INGEST_API_KEY`: A secure password/token of your choosing. This is required to upload documents so unauthorized users can't ingest files.
+- `DEFAULT_SYSTEM_PROMPT`: Instructions for the AI persona (e.g., "You are a helpful assistant. Answer questions based only on the provided context.").
 
-| Variable | Description | Default |
-|---|---|---|
-| `OLLAMA_HOST` | Ollama server URL | `http://localhost:11434` |
-| `EMBEDDING_MODEL` | Ollama model for embeddings | `nomic-embed-text` |
-| `LLM_MODEL` | Ollama model for chat | `gemma3n:e2b` |
-| `DATA_PATH` | Path to persist the vector DB | `./data/vector_db` |
-| `API_PORT` | Backend API port | `8000` |
-| `API_HOST` | Backend bind address | `0.0.0.0` |
-| `INGEST_API_KEY` | Bearer token to protect the `/api/ingest` endpoint | *(required)* |
-| `DEFAULT_SYSTEM_PROMPT` | The AI persona / system prompt | *(required)* |
+*(The other default variables in `.env` are pre-configured to work out-of-the-box for a local Docker setup).*
 
-> **Note:** `INGEST_API_KEY` and `DEFAULT_SYSTEM_PROMPT` have no defaults. The backend will refuse ingestion requests if `INGEST_API_KEY` is not set.
+### 3. Start the Application
 
-### 3. Run with Docker Compose
-
-**Production** (Nginx reverse proxy on port 3000):
+Run the following command to build and start the Docker containers in production mode (using an Nginx reverse proxy):
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-On first run, `ollama_setup.sh` will automatically pull the `gemma3n:e2b` and `nomic-embed-text` models. This may take several minutes.
+> **Note on First Run**: The first time you start the app, a setup script (`ollama_setup.sh`) will automatically run in the background to download the necessary AI models (`gemma3n:e2b` and `nomic-embed-text`) into the Ollama container. This download is several gigabytes and **may take several minutes** depending on your internet connection.
 
-Open **http://localhost:3000** in your browser.
+### 4. Access the App
+
+Once the containers are running and the models have finished downloading, open your browser and navigate to:
+
+**http://localhost:3000**
+
+---
+
+## Using the Application
+
+### 1. Uploading a PDF
+
+Before you can ask questions, you need to upload a document to the knowledge base. You can do this using `curl` or any API client (like Postman), targeting the `/api/ingest` endpoint:
+
+```bash
+curl -X POST http://localhost:3000/api/ingest \
+  -H "Authorization: Bearer <YOUR_INGEST_API_KEY>" \
+  -F "file=@/path/to/your/document.pdf"
+```
+*(Replace `<YOUR_INGEST_API_KEY>` with the key you set in your `.env` file, and `/path/to/your/document.pdf` with the actual path to your file).*
+
+### 2. Chatting
+
+Once the PDF is ingested, you can type your questions into the web interface at `http://localhost:3000`. The AI will search the uploaded document and stream the answer back to you.
 
 ---
 
 ## Development Mode
 
-The dev stack enables hot-reload for both the backend (via `uvicorn --reload`) and the frontend (via Vite’s dev server).
+If you want to modify the code, you can use the development stack which features hot-reloading for both the backend and frontend.
 
 ```bash
-cp .env.example .env.dev   # edit as needed
+cp .env.example .env.dev
+# Edit .env.dev and add INGEST_API_KEY and DEFAULT_SYSTEM_PROMPT
 docker compose -f docker-compose.dev.yml up --build
 ```
-
-| Service | URL |
-|---|---|
-| Frontend (Vite) | http://localhost:3000 |
-| Backend (FastAPI) | http://localhost:8000 |
-| Ollama | http://localhost:11434 |
-
----
-
-## API Reference
-
-### `POST /api/chat`
-
-Chat with the RAG-enabled LLM. Responses are streamed via SSE.
-
-- **Rate limit:** 20 requests/minute per IP
-- **Body:** `{ "message": "Your question here" }`
-- **Response:** `text/event-stream` — each `data:` event contains a string chunk of the response.
-
-### `POST /api/ingest`
-
-Upload a PDF to the vector database.
-
-- **Rate limit:** 5 requests/minute per IP
-- **Auth:** `Authorization: Bearer <INGEST_API_KEY>`
-- **Body:** `multipart/form-data` with a `file` field (PDF only)
-- **Response:** `{ "message": "Successfully ingested N chunks from filename.pdf" }`
-
----
-
-## Ingesting a Document
-
-```bash
-curl -X POST http://localhost:3000/api/ingest \
-  -H "Authorization: Bearer <your-INGEST_API_KEY>" \
-  -F "file=@/path/to/your/document.pdf"
-```
-
-Once ingested, the chatbot will automatically use the document's content to answer related questions.
+- Frontend: http://localhost:3000
+- Backend API Docs: http://localhost:8000/docs
+- Ollama API: http://localhost:11434
