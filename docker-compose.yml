@@ -64,7 +64,7 @@ services:
 
 networks:
   lan:
-    external: true
+    driver: bridge
 
 volumes:
   ollama-data:
