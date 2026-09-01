@@ -1,6 +1,7 @@
 import { Container, Box, Textarea, ActionIcon, Loader } from '@mantine/core';
 import { Send } from 'react-feather';
 import Title from './Title';
+import QuickQuestions from './QuickQuestions';
 
 interface InputAreaProps {
   input: string;
@@ -8,6 +9,7 @@ interface InputAreaProps {
   onSend: () => void;
   isLoading: boolean;
   isInitial: boolean;
+  onQuickQuestion: (q: string) => void;
 }
 
 export default function UserInput({
@@ -16,6 +18,7 @@ export default function UserInput({
   onSend,
   isLoading,
   isInitial,
+  onQuickQuestion,
 }: InputAreaProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -63,6 +66,12 @@ export default function UserInput({
           {isLoading ? <Loader size={18} color="white" /> : <Send size={20} />}
         </ActionIcon>
       </Box>
+
+      {isInitial && (
+        <Box mt="md">
+          <QuickQuestions onQuestionClick={onQuickQuestion} disabled={isLoading} />
+        </Box>
+      )}
     </Container>
   );
 }

@@ -20,6 +20,7 @@ export default function Title() {
         />
       </Stack>
       <Text
+        component="div"
         fz={{ base: 'md', sm: 'lg', md: 'xl' }}
         fw={500}
         ta="center"

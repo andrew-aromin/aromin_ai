@@ -10,3 +10,4 @@ pypdf==6.10.2
 python-dotenv==1.0.1
 bleach==6.1.0
 slowapi==0.1.9
+redis==5.0.1

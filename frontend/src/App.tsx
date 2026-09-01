@@ -33,16 +33,14 @@ export default function App() {
         main: {
           display: 'flex',
           flexDirection: 'column',
-          height: '100vh',
+          height: '100dvh',
           padding: 0,
           paddingTop: 60,
           boxSizing: 'border-box',
         },
       }}
     >
-      <AppShell.Header p="md" bg="#131314" style={{ borderBottom: '1px solid #2e2e2e' }}>
-        <Header />
-      </AppShell.Header>
+      <Header />
 
       <AppShell.Main>
         <Box
@@ -50,12 +48,13 @@ export default function App() {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: isInitialState ? 'center' : 'flex-end',
-            overflowY: 'auto',
+            overflowY: isInitialState ? 'auto' : 'hidden',
             padding: '1rem 0',
             boxSizing: 'border-box',
           }}
         >
+          {isInitialState && <Box style={{ flexGrow: 1, minHeight: 0 }} />}
+
           {!isInitialState && (
             <ScrollArea flex={1} p="md">
               <Container size="md">
@@ -70,13 +69,18 @@ export default function App() {
             </ScrollArea>
           )}
 
-          <InputArea
-            input={input}
-            setInput={setInput}
-            onSend={handleSend}
-            isLoading={isLoading}
-            isInitial={isInitialState}
-          />
+          <Box w="100%" style={{ flexShrink: 0 }}>
+            <InputArea
+              input={input}
+              setInput={setInput}
+              onSend={handleSend}
+              isLoading={isLoading}
+              isInitial={isInitialState}
+              onQuickQuestion={sendMessage}
+            />
+          </Box>
+
+          {isInitialState && <Box style={{ flexGrow: 1, minHeight: 0 }} />}
         </Box>
       </AppShell.Main>
     </AppShell>

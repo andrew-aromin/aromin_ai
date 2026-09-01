@@ -2,6 +2,7 @@ import json
 import logging
 import asyncio
 from typing import Dict
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,14 +15,24 @@ import uvicorn
 from config import API_TITLE, API_HOST, API_PORT
 from services import manager
 from utils import sanitize_input, verify_ingest_key
+from redis_client import get_preloaded_answer
+from preload_redis import preload_questions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Run the preload script in the background so it doesn't block startup
+    logger.info("Starting background task to preload Redis questions...")
+    asyncio.create_task(preload_questions())
+    yield
+    # Cleanup logic (if any) goes here when shutting down
+
 # Initialize Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
-app: FastAPI = FastAPI(title=API_TITLE)
+app: FastAPI = FastAPI(title=API_TITLE, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -57,6 +68,11 @@ async def ingest_file(
     try:
         num_chunks: int = manager.ingest_pdf(file)
         sanitized_filename = sanitize_input(file.filename)
+        
+        # Trigger background preload now that we have documents
+        logger.info("Document ingested. Triggering background task to update Redis cache...")
+        asyncio.create_task(preload_questions())
+        
         return {
             "message": f"Successfully ingested {num_chunks} chunks from {sanitized_filename}"
         }
@@ -71,6 +87,22 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
     sanitized_message = sanitize_input(chat_request.message)
     if not sanitized_message:
         raise HTTPException(status_code=400, detail="Empty or invalid message.")
+
+    # Check for a pre-cached answer in Redis
+    cached_answer = get_preloaded_answer(sanitized_message)
+    if cached_answer:
+        async def cached_event_generator():
+            yield f"data: {json.dumps(cached_answer)}\n\n"
+        
+        return StreamingResponse(
+            cached_event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     async def event_generator():
         try:
