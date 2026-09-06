@@ -1,31 +1,23 @@
 """
 Services module for managing the vector database and LLM chat interactions.
-This module provides a Singleton manager for PDF ingestion and RAG-based chat.
+Provides a configurable VectorStoreManager for PDF ingestion and RAG-based chat.
 """
 
+import logging
 import os
 import shutil
 import tempfile
-import logging
+from typing import AsyncGenerator, List, Optional
+
+import config
 import ollama
-
-from typing import AsyncGenerator, Optional, List
 from fastapi import UploadFile
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
-from config import (
-    OLLAMA_HOST,
-    DATA_PATH,
-    EMBEDDING_MODEL,
-    LLM_MODEL,
-    DEFAULT_SYSTEM_PROMPT,
-)
+from langchain_ollama import OllamaEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -33,116 +25,146 @@ class VectorStoreManager:
     """
     Manages the lifecycle of the Chroma vector database and chat interactions.
 
-    Attributes:
-        embeddings: Ollama embeddings generator.
-        client: Ollama client for LLM interactions.
-        vector_db: Persistent Chroma vector database instance.
+    Supports custom dependency injection for testing and flexible deployment.
     """
 
     _instance: Optional["VectorStoreManager"] = None
-    embeddings: OllamaEmbeddings
-    client: ollama.AsyncClient
-    vector_db: Optional[Chroma]
 
-    def __new__(cls) -> "VectorStoreManager":
-        """Implements the Singleton pattern to ensure only one manager exists."""
+    def __init__(
+        self,
+        ollama_host: Optional[str] = None,
+        data_path: Optional[str] = None,
+        embedding_model: Optional[str] = None,
+        llm_model: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        embeddings: Optional[OllamaEmbeddings] = None,
+        client: Optional[ollama.AsyncClient] = None,
+        vector_db: Optional[Chroma] = None,
+    ):
+        self.ollama_host: str = ollama_host or config.OLLAMA_HOST
+        self.data_path: str = data_path or config.DATA_PATH
+        self.embedding_model: str = embedding_model or config.EMBEDDING_MODEL
+        self.llm_model: str = llm_model or config.LLM_MODEL
+        self.system_prompt: str = system_prompt or config.DEFAULT_SYSTEM_PROMPT
+
+        self.embeddings: OllamaEmbeddings = embeddings or OllamaEmbeddings(
+            model=self.embedding_model, base_url=self.ollama_host
+        )
+        self.client: ollama.AsyncClient = client or ollama.AsyncClient(host=self.ollama_host)
+        self.vector_db: Optional[Chroma] = vector_db
+        if self.vector_db is None:
+            self._load_db()
+
+    @classmethod
+    def get_instance(cls) -> "VectorStoreManager":
+        """Returns the singleton instance of VectorStoreManager."""
         if cls._instance is None:
-            cls._instance = super(VectorStoreManager, cls).__new__(cls)
-            cls._instance._initialize()
+            cls._instance = cls()
         return cls._instance
 
-    def _initialize(self) -> None:
-        """Initializes embeddings, the Ollama client, and loads the database."""
-        self.embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=OLLAMA_HOST)
-        self.client = ollama.AsyncClient(host=OLLAMA_HOST)
-        self.vector_db = None
-        self._load_db()
+    @classmethod
+    def reset_instance(cls) -> None:
+        """Resets the singleton instance (primarily for testing)."""
+        cls._instance = None
 
     def _load_db(self) -> None:
-        """Attempts to load an existing vector database from disk."""
-        if os.path.exists(DATA_PATH):
+        """Attempts to load an existing vector database from disk if directory exists."""
+        if os.path.exists(self.data_path):
             try:
                 self.vector_db = Chroma(
-                    persist_directory=DATA_PATH, embedding_function=self.embeddings
+                    persist_directory=self.data_path,
+                    embedding_function=self.embeddings,
                 )
-                logger.info("Vector DB loaded successfully.")
+                logger.info("Vector DB loaded successfully from %s.", self.data_path)
             except Exception as e:
-                logger.error(f"Error loading Vector DB: {e}")
+                logger.error("Error loading Vector DB from %s: %s", self.data_path, e)
+                self.vector_db = None
 
     def ingest_pdf(self, file: UploadFile) -> int:
         """
-        Loads a PDF, splits it into chunks, and stores it in the vector database.
+        Loads an uploaded PDF, splits text into chunks, and persists them into Chroma vector DB.
 
         Args:
             file: The uploaded PDF file.
 
         Returns:
-            The number of chunks ingested.
+            The count of chunks ingested.
+
+        Raises:
+            ValueError: If the file produces no readable text or chunks.
         """
-        # Save uploaded file to a temporary location
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            shutil.copyfileobj(file.file, tmp)
-            temp_path: str = tmp.name
-
+        temp_path: Optional[str] = None
         try:
-            # Load and parse the PDF
-            loader: PyPDFLoader = PyPDFLoader(temp_path)
-            pages: List[Document] = loader.load()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                shutil.copyfileobj(file.file, tmp)
+                temp_path = tmp.name
 
-            # Split text into manageable chunks for embedding
-            text_splitter: RecursiveCharacterTextSplitter = (
-                RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
-            )
+            loader = PyPDFLoader(temp_path)
+            pages: List[Document] = loader.load()
+            if not pages:
+                fname = file.filename or "uploaded file"
+                raise ValueError(f"No readable text found in {fname}.")
+
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
             chunks: List[Document] = text_splitter.split_documents(pages)
 
-            # Re-initialize or update Chroma with the new chunks
+            if not chunks:
+                fname = file.filename or "uploaded file"
+                raise ValueError(f"No content chunks extracted from {fname}.")
+
+            # Persist to Chroma
             self.vector_db = Chroma.from_documents(
-                documents=chunks, embedding=self.embeddings, persist_directory=DATA_PATH
+                documents=chunks,
+                embedding=self.embeddings,
+                persist_directory=self.data_path,
             )
-            logger.info(f"Ingested {len(chunks)} chunks from {file.filename}")
+            logger.info("Ingested %d chunks from %s", len(chunks), file.filename)
             return len(chunks)
         finally:
-            # Cleanup temporary file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError as e:
+                    logger.warning("Could not remove temp file %s: %s", temp_path, e)
 
     async def chat_stream(self, user_query: str) -> AsyncGenerator[str, None]:
         """
-        Generates a streaming response using Retrieval-Augmented Generation (RAG).
+        Generates streaming text response using Retrieval-Augmented Generation (RAG).
 
         Args:
-            user_query: The user's input question.
+            user_query: The user's sanitized input question.
 
         Yields:
-            Chunks of the LLM-generated response.
+            Text chunks from the LLM.
         """
-        try:
-            context: str = ""
-            if self.vector_db:
-                # Retrieve the top 3 most relevant context chunks from the vector DB
+        context: str = ""
+        if self.vector_db is not None:
+            try:
                 docs: List[Document] = self.vector_db.similarity_search(user_query, k=3)
-                context = "\n".join([doc.page_content for doc in docs])
+                context = "\n".join([doc.page_content for doc in docs if doc.page_content])
+            except Exception as e:
+                logger.warning("Vector search error: %s. Proceeding with base prompt.", e)
 
-            # Construct the system prompt with retrieved context
-            system_prompt: str = f"{DEFAULT_SYSTEM_PROMPT}\n\nContext: {context}"
+        if context:
+            full_system_prompt: str = f"{self.system_prompt}\n\nContext: {context}"
+        else:
+            full_system_prompt = self.system_prompt
 
-            # Stream the chat response from Ollama
-            response = await self.client.chat(
-                model=LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_query},
-                ],
-                stream=True,
-            )
+        response = await self.client.chat(
+            model=self.llm_model,
+            messages=[
+                {"role": "system", "content": full_system_prompt},
+                {"role": "user", "content": user_query},
+            ],
+            stream=True,
+            options={"num_ctx": 4096}
+        )
 
-            async for chunk in response:
-                yield chunk["message"]["content"]
-
-        except Exception as e:
-            logger.error(f"Chat error: {e}")
-            yield f"Error: {str(e)}"
+        async for chunk in response:
+            content = chunk.get("message", {}).get("content", "")
+            if content:
+                yield content
 
 
-# Singleton instance for use throughout the application
-manager: VectorStoreManager = VectorStoreManager()
+# Global instance for standard application use
+manager: VectorStoreManager = VectorStoreManager.get_instance()

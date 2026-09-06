@@ -1,59 +1,85 @@
+"""
+Preload Redis cache with pre-generated answers for quick prompt bubbles.
+Runs as a background task on startup and after successful document ingestion.
+"""
+
 import asyncio
-import os
-import sys
+import logging
+from typing import Dict, List
 
-# Ensure we can import from the current directory
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from redis_client import init_redis, set_preloaded_answer, set_preloaded_questions_order
+import redis_client as rc
 from services import manager
 
-async def preload_questions():
-    init_redis()
-    
-    # Check if vector DB is initialized and has documents
+logger = logging.getLogger(__name__)
+
+DEFAULT_QUESTIONS_MAP: Dict[str, str] = {
+    "Summarize Andrew's background": (
+        "Can you provide a summary of Andrew's 11-year engineering background, "
+        "core competencies, and career progression?"
+    ),
+    "Building 'Balto' ($100K+ savings)": (
+        "Tell me about 'Balto,' the internal digital adoption platform Andrew built "
+        "at MassMutual to save $100K+ in SaaS fees."
+    ),
+    "Modernizing Artiva at Credit Acceptance": (
+        "How did Andrew decouple the legacy Artiva debt collection UI and reduce call "
+        "handling times at Credit Acceptance?"
+    ),
+}
+
+
+async def preload_questions(
+    questions_map: Dict[str, str] = DEFAULT_QUESTIONS_MAP,
+) -> bool:
+    """
+    Generates answers for preconfigured quick-prompt bubbles and caches them in Redis.
+
+    Args:
+        questions_map: Mapping of bubble text to prompt sent to LLM.
+
+    Returns:
+        True if questions were preloaded or attempted, False if skipped.
+    """
+    rc.init_redis()
+
     if not manager.vector_db:
-        print("Vector DB is not initialized. Skipping preload.")
-        return
-        
+        logger.info("Vector DB is not initialized. Skipping Redis preload.")
+        return False
+
     try:
-        # Perform a fast, dummy similarity search to ensure documents exist
-        docs = manager.vector_db.similarity_search("test check", k=1)
+        docs = manager.vector_db.similarity_search("career experience summary", k=1)
         if not docs:
-            print("Vector DB is empty (no resume uploaded). Skipping preload.")
-            return
+            logger.info("Vector DB has no documents. Skipping Redis preload.")
+            return False
     except Exception as e:
-        print(f"Error checking Vector DB: {e}")
-        return
-    
-    # Mapping of frontend bubble text -> actual LLM prompt
-    questions_map = {
-        "Summarize Andrew's background": "Can you provide a summary of Andrew's 11-year engineering background, core competencies, and career progression?",
-        "Building 'Balto' ($100K+ savings)": "Tell me about 'Balto,' the internal digital adoption platform Andrew built at MassMutual to save $100K+ in SaaS fees.",
-        "Serverless & Event-Driven design": "What experience does Andrew have architecting serverless, event-driven platforms on AWS (Lambda, EventBridge, DynamoDB)?",
-        "AI-augmented workflows": "How does Andrew incorporate AI tools (LLMs, RAG pipelines, MCP, agentic tools) into software engineering?",
-        "Modernizing Artiva at Credit Acceptance": "How did Andrew decouple the legacy Artiva debt collection UI and reduce call handling times at Credit Acceptance?"
-    }
-    
+        logger.warning("Error checking Vector DB for preload: %s", e)
+        return False
+
+    saved_questions: List[str] = []
+
     for bubble_text, llm_prompt in questions_map.items():
-        print(f"Generating answer for: {bubble_text}")
+        logger.info("Generating answer for cached question: '%s'", bubble_text)
         try:
-            # We use the manager's generate_response which is not a stream, 
-            # wait, chat_stream is an async generator. 
-            # We need to consume it to get the full answer.
-            answer_parts = []
+            answer_parts: List[str] = []
             async for chunk in manager.chat_stream(llm_prompt):
                 answer_parts.append(chunk)
-                
-            full_answer = "".join(answer_parts)
-            set_preloaded_answer(bubble_text, full_answer)
-            print(f"Successfully cached answer for: {bubble_text}")
+
+            full_answer = "".join(answer_parts).strip()
+            if full_answer:
+                rc.set_preloaded_answer(bubble_text, full_answer)
+                saved_questions.append(bubble_text)
+                logger.info("Successfully cached answer for '%s'", bubble_text)
         except Exception as e:
-            print(f"Failed to generate answer for '{bubble_text}': {e}")
-            
-    # Save the exact order of the bubbles for the frontend
-    set_preloaded_questions_order(list(questions_map.keys()))
-    print("Successfully saved ordered list for the frontend UI.")
+            logger.error("Failed to generate answer for '%s': %s", bubble_text, e)
+
+    if saved_questions:
+        rc.set_preloaded_questions_order(saved_questions)
+        logger.info("Saved %d preloaded questions to Redis.", len(saved_questions))
+        return True
+
+    return False
+
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     asyncio.run(preload_questions())

@@ -2,16 +2,14 @@ import DOMPurify from 'dompurify';
 
 /**
  * Sanitizes user input on the frontend using DOMPurify.
- * This removes potentially malicious HTML and scripts to prevent XSS.
- * Note: Comprehensive sanitization also occurs on the backend for defense-in-depth.
+ * Strips all HTML tags and attributes for plain-text inputs to prevent XSS.
+ * Defense-in-depth sanitization also occurs on the backend.
  */
 export const sanitizeFrontendInput = (input: string): string => {
   if (!input) return '';
 
-  // Clean the input and trim whitespace
   return DOMPurify.sanitize(input, {
-    USE_PROFILES: { html: true },
-    ALLOWED_TAGS: [], // For plain text inputs, we strip all tags
+    ALLOWED_TAGS: [],
     ALLOWED_ATTR: [],
   }).trim();
 };

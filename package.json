@@ -1,4 +1,12 @@
 {
+  "name": "aromin_ai",
+  "private": true,
+  "scripts": {
+    "docker:build": "docker-compose up --build -d",
+    "docker:build:dev": "docker-compose -f docker-compose.dev.yml up --build",
+    "docker:down": "docker-compose down -v",
+    "docker:build:dev:down": "docker-compose -f docker-compose.dev.yml down -v"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

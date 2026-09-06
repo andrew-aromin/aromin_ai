@@ -1,47 +1,39 @@
-import React from 'react';
-import { render } from '@testing-library/react';
-import '@testing-library/jest-dom/extend-expect';
-import MessageBubble from './MessageBubble';
-import type { Message } from '../types/chat';
+import { describe, it, expect } from 'vitest';
+import { screen } from '@testing-library/react';
+import { renderWithMantine } from '../../test/test-utils';
+import MessageBubble from '../MessageBubble';
+import type { Message } from '../../types/chat';
 
 describe('MessageBubble', () => {
   const userMessage: Message = {
     role: 'user',
-    content: '**Hello, world!** [Link](https://example.com)',
+    content: 'What is your background?',
   };
 
-  const botMessage: Message = {
-    role: 'bot',
-    content: '**Hi there!** [Visit us](https://example.com)',
+  const assistantMessage: Message = {
+    role: 'assistant',
+    content: '11 years in software engineering. [LinkedIn](https://linkedin.com)',
   };
 
-  it('renders user message with correct styles and icons', () => {
-    const { getByText, getByRole } = render(<MessageBubble msg={userMessage} />);
-    
-    expect(getByRole('img', { name: /user/i })).toBeInTheDocument();
-    expect(getByText('Hello, world!')).toHaveStyle({ color: '#4dabf7' });
-    expect(getByText('Link')).toHaveAttribute('href', 'https://example.com');
-    expect(getByText('Link')).toHaveAttribute('target', '_blank');
+  it('renders user message with user icon and content', () => {
+    renderWithMantine(<MessageBubble msg={userMessage} />);
+
+    expect(screen.getByTestId('user-icon')).toBeInTheDocument();
+    expect(screen.getByText('What is your background?')).toBeInTheDocument();
+    expect(screen.getByTestId('message-bubble')).toHaveAttribute('data-role', 'user');
   });
 
-  it('renders bot message with correct styles and icons', () => {
-    const { getByText, getByRole } = render(<MessageBubble msg={botMessage} />);
-    
-    expect(getByRole('img', { name: /cpu/i })).toBeInTheDocument();
-    expect(getByText('Hi there!')).toHaveStyle({ color: '#4dabf7' });
-    expect(getByText('Visit us')).toHaveAttribute('href', 'https://example.com');
-    expect(getByText('Visit us')).toHaveAttribute('target', '_blank');
-  });
+  it('renders assistant message with cpu icon, markdown text, and link with target _blank', () => {
+    renderWithMantine(<MessageBubble msg={assistantMessage} />);
 
-  it('aligns user message to the right', () => {
-    const { container } = render(<MessageBubble msg={userMessage} />);
-    
-    expect(container.firstChild).toHaveStyle({ justifyContent: 'flex-end' });
-  });
+    expect(screen.getByTestId('cpu-icon')).toBeInTheDocument();
+    expect(screen.getByText(/11 years in software engineering\./i)).toBeInTheDocument();
 
-  it('aligns bot message to the left', () => {
-    const { container } = render(<MessageBubble msg={botMessage} />);
-    
-    expect(container.firstChild).toHaveStyle({ justifyContent: 'flex-start' });
+    const link = screen.getByRole('link', { name: 'LinkedIn' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', 'https://linkedin.com');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByTestId('message-bubble')).toHaveAttribute('data-role', 'assistant');
   });
 });

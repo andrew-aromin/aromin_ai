@@ -2,25 +2,24 @@ import React from 'react';
 import { ScrollArea, Container, Stack } from '@mantine/core';
 import type { Message } from '../types/chat';
 import MessageBubble from './MessageBubble';
+import TypingIndicator from './TypingIndicator';
 
-interface ChatWindowProps {
+export interface ChatWindowProps {
   messages: Message[];
+  showTyping?: boolean;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function ChatWindow({ messages, scrollRef }: ChatWindowProps) {
+export default function ChatWindow({ messages, showTyping = false, scrollRef }: ChatWindowProps) {
   return (
     <ScrollArea flex={1} p="md" offsetScrollbars scrollbarSize={8} style={{ width: '100%' }}>
       <Container size="md">
-        <Stack gap="xl">
+        <Stack gap="xl" role="log" aria-live="polite">
           {messages.map((msg, index) => (
             <MessageBubble key={`${msg.role}-${index}`} msg={msg} />
           ))}
-
-          {/* The scrollRef anchor is placed at the bottom of the stack.
-             When new messages arrive, App.tsx triggers a smooth scroll to this div.
-          */}
-          <div ref={scrollRef} style={{ height: 1 }} />
+          {showTyping && <TypingIndicator />}
+          <div ref={scrollRef} data-testid="scroll-anchor" style={{ height: 1 }} />
         </Stack>
       </Container>
     </ScrollArea>

@@ -12,10 +12,11 @@ services:
       - ./ollama_setup.sh:/ollama_setup.sh
     entrypoint: ["/usr/bin/bash", "/ollama_setup.sh"]
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD-SHELL", "test -f /tmp/ollama_ready && ollama list"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 60
+    restart: always
     networks:
       - lan
 
@@ -28,7 +29,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     volumes:
       - backend-data:/app/data
     restart: always

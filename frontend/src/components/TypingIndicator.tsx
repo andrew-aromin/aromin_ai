@@ -3,7 +3,12 @@ import { Cpu } from 'react-feather';
 
 export default function TypingIndicator() {
   return (
-    <Group align="flex-start" justify="flex-start">
+    <Group
+      align="flex-start"
+      justify="flex-start"
+      data-testid="typing-indicator"
+      aria-label="Assistant is generating response"
+    >
       <Group
         align="flex-start"
         gap="md"
@@ -11,8 +16,8 @@ export default function TypingIndicator() {
           maxWidth: '85%',
         }}
       >
-        <Avatar radius="xl" size="md" color="blue" variant="filled">
-          <Cpu size={16} />
+        <Avatar radius="xl" size="md" color="blue" variant="filled" aria-label="Assistant avatar">
+          <Cpu size={16} data-testid="cpu-icon" />
         </Avatar>
         <Box
           bg="#2e2e2e"
@@ -25,9 +30,9 @@ export default function TypingIndicator() {
             minHeight: '40px',
           }}
         >
-          <div className="typing-dot" />
-          <div className="typing-dot" />
-          <div className="typing-dot" />
+          <div className="typing-dot" data-testid="typing-dot" />
+          <div className="typing-dot" data-testid="typing-dot" />
+          <div className="typing-dot" data-testid="typing-dot" />
         </Box>
       </Group>
     </Group>

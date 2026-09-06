@@ -1,17 +1,30 @@
-import { AppShell, ScrollArea, Container, Stack, Box } from '@mantine/core';
+import { AppShell, Box } from '@mantine/core';
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from './hooks/useChat';
-import MessageBubble from './components/MessageBubble';
-import TypingIndicator from './components/TypingIndicator';
+import ChatWindow from './components/ChatWindow';
 import InputArea from './components/UserInput';
 import Header from './components/layout/Header';
+import { fetchQuickQuestions } from './services/chatApi';
 import './App.css';
 
 export default function App() {
   const [input, setInput] = useState('');
+  const [questions, setQuestions] = useState<string[] | undefined>(undefined);
   const { messages, sendMessage, isLoading } = useChat();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isInitialState = messages.length === 0;
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchQuickQuestions().then((fetched) => {
+      if (isMounted && fetched.length > 0) {
+        setQuestions(fetched);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -56,17 +69,7 @@ export default function App() {
           {isInitialState && <Box style={{ flexGrow: 1, minHeight: 0 }} />}
 
           {!isInitialState && (
-            <ScrollArea flex={1} p="md">
-              <Container size="md">
-                <Stack gap="xl">
-                  {messages.map((msg, i) => (
-                    <MessageBubble key={i} msg={msg} />
-                  ))}
-                  {showTyping && <TypingIndicator />}
-                  <div ref={scrollRef} />
-                </Stack>
-              </Container>
-            </ScrollArea>
+            <ChatWindow messages={messages} showTyping={showTyping} scrollRef={scrollRef} />
           )}
 
           <Box w="100%" style={{ flexShrink: 0 }}>
@@ -77,6 +80,7 @@ export default function App() {
               isLoading={isLoading}
               isInitial={isInitialState}
               onQuickQuestion={sendMessage}
+              questions={questions}
             />
           </Box>
 

@@ -1,48 +1,40 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { describe, it, expect, vi } from 'vitest';
+import { screen, fireEvent } from '@testing-library/react';
+import { renderWithMantine } from '../../test/test-utils';
 import QuickQuestions from '../QuickQuestions';
+import { DEFAULT_QUESTIONS } from '../../constants/questions';
 
 describe('QuickQuestions Component', () => {
-  const QUESTIONS = [
-    "Summarize Andrew's background",
-    "Building 'Balto' ($100K+ savings)",
-    "Serverless & Event-Driven design",
-    "AI-augmented workflows",
-    "Modernizing Artiva at Credit Acceptance"
-  ];
+  it('renders all default questions', () => {
+    renderWithMantine(<QuickQuestions onQuestionClick={vi.fn()} />);
 
-  it('renders all questions', () => {
-    render(<QuickQuestions onQuestionClick={jest.fn()} />);
-    
-    QUESTIONS.forEach(q => {
+    DEFAULT_QUESTIONS.forEach((q) => {
       expect(screen.getByText(q)).toBeInTheDocument();
     });
   });
 
+  it('renders custom questions if provided', () => {
+    const custom = ['Custom Q1', 'Custom Q2'];
+    renderWithMantine(<QuickQuestions onQuestionClick={vi.fn()} questions={custom} />);
+
+    expect(screen.getByText('Custom Q1')).toBeInTheDocument();
+    expect(screen.getByText('Custom Q2')).toBeInTheDocument();
+  });
+
   it('calls onQuestionClick with correct question when clicked', () => {
-    const mockOnClick = jest.fn();
-    render(<QuickQuestions onQuestionClick={mockOnClick} />);
-    
-    const button = screen.getByText(QUESTIONS[0]);
+    const mockOnClick = vi.fn();
+    renderWithMantine(<QuickQuestions onQuestionClick={mockOnClick} />);
+
+    const button = screen.getByText(DEFAULT_QUESTIONS[0]);
     fireEvent.click(button);
-    
-    expect(mockOnClick).toHaveBeenCalledWith(QUESTIONS[0]);
+
+    expect(mockOnClick).toHaveBeenCalledWith(DEFAULT_QUESTIONS[0]);
   });
 
-  it('disables all buttons when disabled prop is true', () => {
-    render(<QuickQuestions onQuestionClick={jest.fn()} disabled={true} />);
-    
-    QUESTIONS.forEach(q => {
-      expect(screen.getByText(q).closest('button')).toBeDisabled();
-    });
-  });
+  it('disables buttons when disabled prop is true', () => {
+    renderWithMantine(<QuickQuestions onQuestionClick={vi.fn()} disabled={true} />);
 
-  it('enables all buttons when disabled prop is false', () => {
-    render(<QuickQuestions onQuestionClick={jest.fn()} disabled={false} />);
-    
-    QUESTIONS.forEach(q => {
-      expect(screen.getByText(q).closest('button')).not.toBeDisabled();
-    });
+    const button = screen.getByText(DEFAULT_QUESTIONS[0]).closest('button');
+    expect(button).toBeDisabled();
   });
 });

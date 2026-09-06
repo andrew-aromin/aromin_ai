@@ -4,7 +4,7 @@ services:
     image: ollama/ollama:latest
     container_name: ollama
     env_file:
-      - .env
+      - .env.dev
     environment:
       - HOME=/home/ubuntu
     volumes:
@@ -12,10 +12,11 @@ services:
       - ./ollama_setup.sh:/ollama_setup.sh
     entrypoint: ["/usr/bin/bash", "/ollama_setup.sh"]
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD-SHELL", "test -f /tmp/ollama_ready && ollama list"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 60
+    restart: unless-stopped
     networks:
       - dev
 
@@ -26,9 +27,10 @@ services:
       dockerfile: Dockerfile
     container_name: aromin_ai-backend-dev
     env_file:
-      - .env
+      - .env.dev
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
@@ -43,7 +45,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: aromin_ai-frontend-dev
     env_file:
-      - .env
+      - .env.dev
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules

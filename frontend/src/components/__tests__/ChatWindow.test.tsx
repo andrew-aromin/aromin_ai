@@ -1,37 +1,30 @@
-// frontend/src/components/ChatWindow.test.tsx
-
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom/extend-expect';
-import ChatWindow from './ChatWindow';
-import type { Message } from '../types/chat';
+import { describe, it, expect } from 'vitest';
+import { screen } from '@testing-library/react';
+import { renderWithMantine } from '../../test/test-utils';
+import ChatWindow from '../ChatWindow';
+import type { Message } from '../../types/chat';
 
-describe('ChatWindow', () => {
+describe('ChatWindow Component', () => {
   const messages: Message[] = [
-    { role: 'user', content: 'Hello' },
-    { role: 'assistant', content: 'Hi there!' }
+    { role: 'user', content: 'What is your background?' },
+    { role: 'assistant', content: 'I have 11 years of engineering experience.' },
   ];
 
-  it('renders messages correctly', () => {
-    render(<ChatWindow messages={messages} scrollRef={{ current: null }} />);
+  it('renders all messages and scroll anchor', () => {
+    const scrollRef = React.createRef<HTMLDivElement>();
+    renderWithMantine(<ChatWindow messages={messages} showTyping={false} scrollRef={scrollRef} />);
 
-    // Check if the correct number of message bubbles are rendered
-    const messageBubbles = screen.getAllByRole('listitem');
-    expect(messageBubbles).toHaveLength(messages.length);
-
-    // Check if the content of each message is rendered correctly
-    messages.forEach((msg, index) => {
-      const messageContent = screen.getByText(msg.content);
-      expect(messageContent).toBeInTheDocument();
-    });
+    expect(screen.getByText('What is your background?')).toBeInTheDocument();
+    expect(screen.getByText('I have 11 years of engineering experience.')).toBeInTheDocument();
+    expect(screen.getByTestId('scroll-anchor')).toBeInTheDocument();
+    expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument();
   });
 
-  it('renders a div with scrollRef', () => {
-    render(<ChatWindow messages={messages} scrollRef={{ current: null }} />);
+  it('renders TypingIndicator when showTyping is true', () => {
+    const scrollRef = React.createRef<HTMLDivElement>();
+    renderWithMantine(<ChatWindow messages={messages} showTyping={true} scrollRef={scrollRef} />);
 
-    // Check if the scrollRef anchor is rendered
-    const scrollRefDiv = screen.getByTestId('scroll-ref');
-    expect(scrollRefDiv).toBeInTheDocument();
-    expect(scrollRefDiv.style.height).toBe('1px');
+    expect(screen.getByTestId('typing-indicator')).toBeInTheDocument();
   });
 });

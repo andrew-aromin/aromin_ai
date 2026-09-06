@@ -117,3 +117,30 @@ docker compose -f docker-compose.dev.yml up --build
 - Frontend: http://localhost:3000
 - Backend API Docs: http://localhost:8000/docs
 - Ollama API: http://localhost:11434
+
+---
+
+## Testing & Quality Assurance
+
+Both backend and frontend maintain high test coverage and strict linting.
+
+### Backend Tests & Linting
+```bash
+# Run pytest with test coverage report
+pytest --cov=backend backend/tests
+
+# Check and format code with Ruff
+ruff check backend
+ruff format backend
+```
+
+### Frontend Tests & Linting
+```bash
+# Run Vitest with coverage report
+npm --prefix frontend run test:coverage
+
+# Lint and typecheck frontend
+npm --prefix frontend run lint
+npm --prefix frontend run build
+```
+

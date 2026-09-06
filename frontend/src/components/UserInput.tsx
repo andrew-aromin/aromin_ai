@@ -1,15 +1,17 @@
+import React from 'react';
 import { Container, Box, Textarea, ActionIcon, Loader } from '@mantine/core';
 import { Send } from 'react-feather';
 import Title from './Title';
 import QuickQuestions from './QuickQuestions';
 
-interface InputAreaProps {
+export interface InputAreaProps {
   input: string;
   setInput: (val: string) => void;
   onSend: () => void;
   isLoading: boolean;
   isInitial: boolean;
   onQuickQuestion: (q: string) => void;
+  questions?: string[];
 }
 
 export default function UserInput({
@@ -19,8 +21,9 @@ export default function UserInput({
   isLoading,
   isInitial,
   onQuickQuestion,
+  questions,
 }: InputAreaProps) {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSend();
@@ -40,6 +43,7 @@ export default function UserInput({
           size="xl"
           radius="xl"
           placeholder="Ask about my career..."
+          aria-label="Ask about my career"
           autosize
           minRows={1}
           maxRows={4}
@@ -59,17 +63,26 @@ export default function UserInput({
           size={40}
           radius="xl"
           variant="filled"
+          aria-label="Send message"
           disabled={isLoading || !input.trim()}
           onClick={onSend}
           style={{ position: 'absolute', right: 10, bottom: 8, zIndex: 2 }}
         >
-          {isLoading ? <Loader size={18} color="white" /> : <Send size={20} />}
+          {isLoading ? (
+            <Loader size={18} color="white" data-testid="send-loader" />
+          ) : (
+            <Send size={20} data-testid="send-icon" />
+          )}
         </ActionIcon>
       </Box>
 
       {isInitial && (
         <Box mt="md">
-          <QuickQuestions onQuestionClick={onQuickQuestion} disabled={isLoading} />
+          <QuickQuestions
+            onQuestionClick={onQuickQuestion}
+            disabled={isLoading}
+            questions={questions}
+          />
         </Box>
       )}
     </Container>

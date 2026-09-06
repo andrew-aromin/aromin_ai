@@ -9,6 +9,10 @@ env/
 build/
 dist/
 *.egg-info/
+.coverage
+coverage/
+.pytest_cache/
+htmlcov/
 
 # --- AI & Data (Crucial for your hardware) ---
 # Do not commit the local LLM weights or vector database files

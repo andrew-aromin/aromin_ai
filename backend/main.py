@@ -1,51 +1,59 @@
+"""
+FastAPI application entry point for Aromin AI.
+Provides REST endpoints for document ingestion, chat streaming (SSE),
+and question discovery with rate limiting and security defenses.
+"""
+
+import asyncio
 import json
 import logging
-import asyncio
-from typing import Dict
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+from typing import Any, AsyncGenerator, Dict, List, Optional
+
 import uvicorn
-
-from config import API_TITLE, API_HOST, API_PORT
+from config import (
+    ALLOWED_ORIGINS,
+    API_HOST,
+    API_PORT,
+    API_TITLE,
+)
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from preload_redis import DEFAULT_QUESTIONS_MAP, preload_questions
+from pydantic import BaseModel, Field, field_validator
+from redis_client import get_all_preloaded_questions, get_preloaded_answer
 from services import manager
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from utils import sanitize_input, verify_ingest_key
-from redis_client import get_preloaded_answer
-from preload_redis import preload_questions
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Run the preload script in the background so it doesn't block startup
+    """Application lifespan manager: starts background preload task on startup."""
     logger.info("Starting background task to preload Redis questions...")
-    asyncio.create_task(preload_questions())
+    preload_task = asyncio.create_task(preload_questions())
     yield
-    # Cleanup logic (if any) goes here when shutting down
+    # Cancel pending background preload if still running during shutdown
+    if not preload_task.done():
+        preload_task.cancel()
+
 
 # Initialize Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
+
 app: FastAPI = FastAPI(title=API_TITLE, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Enable CORS for frontend communication
-# Allow origins from configuration or default to localhost for development
+# Configure CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,47 +61,90 @@ app.add_middleware(
 
 
 class ChatRequest(BaseModel):
-    message: str
+    """Schema for chat prompt requests."""
+
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=4000,
+        description="User query or prompt to submit to RAG pipeline",
+    )
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Message cannot be blank or whitespace only.")
+        return cleaned
 
 
-@app.post("/api/ingest", dependencies=[Depends(verify_ingest_key)])
+def format_sse(data: Any) -> str:
+    """Formats an arbitrary payload into standard Server-Sent Event data block."""
+    return f"data: {json.dumps(data)}\n\n"
+
+
+@app.get("/api/health", tags=["Monitoring"])
+async def health_check() -> Dict[str, str]:
+    """Health check endpoint for container orchestrators and monitoring."""
+    return {"status": "ok"}
+
+
+@app.get("/api/questions", tags=["Chat"])
+async def get_questions() -> List[str]:
+    """Returns the ordered list of quick questions, preferring cached Redis order."""
+    cached = get_all_preloaded_questions()
+    if cached:
+        return cached
+    return list(DEFAULT_QUESTIONS_MAP.keys())
+
+
+@app.post("/api/ingest", dependencies=[Depends(verify_ingest_key)], tags=["Knowledge Base"])
 @limiter.limit("5/minute")
 async def ingest_file(
-    request: Request, file: UploadFile = File(...)
+    request: Request,
+    file: UploadFile = File(...),
 ) -> Dict[str, str]:
-    """Endpoint to upload a PDF, chunk it, and store it in the Vector DB."""
-    if not file.filename or not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+    """Upload a PDF, extract and chunk content, and store embeddings in the Vector DB."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are supported.",
+        )
 
     try:
         num_chunks: int = manager.ingest_pdf(file)
         sanitized_filename = sanitize_input(file.filename)
-        
-        # Trigger background preload now that we have documents
+
         logger.info("Document ingested. Triggering background task to update Redis cache...")
         asyncio.create_task(preload_questions())
-        
-        return {
-            "message": f"Successfully ingested {num_chunks} chunks from {sanitized_filename}"
-        }
+
+        return {"message": f"Successfully ingested {num_chunks} chunks from {sanitized_filename}"}
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Error ingesting PDF %s: %s", file.filename, e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@app.post("/api/chat")
+@app.post("/api/chat", tags=["Chat"])
 @limiter.limit("20/minute")
 async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse:
-    """Endpoint to chat with the RAG-enabled LLM using SSE."""
+    """Chat with the RAG-enabled LLM via Server-Sent Events (SSE)."""
     sanitized_message = sanitize_input(chat_request.message)
     if not sanitized_message:
-        raise HTTPException(status_code=400, detail="Empty or invalid message.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty or invalid message.",
+        )
 
-    # Check for a pre-cached answer in Redis
+    # Check for pre-cached answer in Redis
     cached_answer = get_preloaded_answer(sanitized_message)
     if cached_answer:
-        async def cached_event_generator():
-            yield f"data: {json.dumps(cached_answer)}\n\n"
-        
+
+        async def cached_event_generator() -> AsyncGenerator[str, None]:
+            yield format_sse(cached_answer)
+
         return StreamingResponse(
             cached_event_generator(),
             media_type="text/event-stream",
@@ -104,39 +155,34 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
             },
         )
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
+        chunk_task: Optional[asyncio.Task] = None
         try:
-            # Get the async iterator from the generator
             gen = manager.chat_stream(sanitized_message).__aiter__()
-            # Create a task for the first chunk
             chunk_task = asyncio.create_task(gen.__anext__())
 
             while True:
-                # Wait for the chunk task to complete or timeout for keep-alive
-                done, pending = await asyncio.wait(
+                done, _ = await asyncio.wait(
                     {chunk_task}, timeout=15.0, return_when=asyncio.FIRST_COMPLETED
                 )
 
                 if chunk_task in done:
                     try:
                         chunk = chunk_task.result()
-                        yield f"data: {json.dumps(chunk)}\n\n"
-                        # Prepare the task for the next chunk
+                        yield format_sse(chunk)
                         chunk_task = asyncio.create_task(gen.__anext__())
                     except StopAsyncIteration:
                         break
                 else:
-                    # Timeout reached, send an SSE comment as a keep-alive ping
                     if await request.is_disconnected():
                         break
                     yield ": ping\n\n"
 
         except Exception as e:
-            logger.error(f"Streaming error: {e}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            logger.error("Streaming error: %s", e)
+            yield format_sse({"error": str(e)})
         finally:
-            # Ensure the pending task is cancelled if we exit the loop
-            if "chunk_task" in locals() and not chunk_task.done():
+            if chunk_task is not None and not chunk_task.done():
                 chunk_task.cancel()
 
     return StreamingResponse(
@@ -151,4 +197,5 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     uvicorn.run(app, host=API_HOST, port=API_PORT)

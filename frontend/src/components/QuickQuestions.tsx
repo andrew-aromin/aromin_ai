@@ -1,23 +1,26 @@
 import { Group, Button, Box } from '@mantine/core';
+import { DEFAULT_QUESTIONS } from '../constants/questions';
 
-interface QuickQuestionsProps {
+export interface QuickQuestionsProps {
   onQuestionClick: (question: string) => void;
   disabled?: boolean;
+  questions?: string[];
 }
 
-const QUESTIONS = [
-  "Summarize Andrew's background",
-  "Building 'Balto' ($100K+ savings)",
-  "Serverless & Event-Driven design",
-  "AI-augmented workflows",
-  "Modernizing Artiva at Credit Acceptance"
-];
-
-export default function QuickQuestions({ onQuestionClick, disabled }: QuickQuestionsProps) {
+export default function QuickQuestions({
+  onQuestionClick,
+  disabled = false,
+  questions = DEFAULT_QUESTIONS,
+}: QuickQuestionsProps) {
   return (
     <Box style={{ overflowX: 'auto', paddingBottom: '8px' }}>
-      <Group justify="flex-start" gap="xs" wrap="nowrap" style={{ width: 'max-content', margin: '0 auto' }}>
-        {QUESTIONS.map((q) => (
+      <Group
+        justify="flex-start"
+        gap="xs"
+        wrap="nowrap"
+        style={{ width: 'max-content', margin: '0 auto' }}
+      >
+        {questions.map((q) => (
           <Button
             key={q}
             variant="default"

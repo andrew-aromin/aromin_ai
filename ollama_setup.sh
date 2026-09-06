@@ -46,4 +46,5 @@ wait $TEMP_SERVER_PID
 
 # Start the final Ollama server in the foreground
 echo "Starting Ollama server..."
+touch /tmp/ollama_ready
 exec ollama serve

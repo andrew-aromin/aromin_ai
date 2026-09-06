@@ -1,29 +1,67 @@
-from fastapi import HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+"""
+Utility functions for Aromin AI backend.
+Includes request sanitation and authentication token verification.
+"""
+
+import secrets
+from typing import Optional
+
 import bleach
-from config import INGEST_API_KEY
+import config
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-security = HTTPBearer()
+# Require Bearer token for protected endpoints
+security = HTTPBearer(auto_error=True)
 
 
-def sanitize_input(text: str) -> str:
+def sanitize_input(text: Optional[str]) -> str:
     """
     Sanitizes user input by stripping all HTML tags and attributes.
-    This is a defense-in-depth measure to prevent XSS and other injection attacks.
+    Defense-in-depth measure to prevent XSS and unwanted HTML injection.
+
+    Args:
+        text: Raw input string or None.
+
+    Returns:
+        Sanitized plain text string.
     """
     if not text:
         return ""
+    if not isinstance(text, str):
+        text = str(text)
     # Strip all tags and attributes
     return bleach.clean(text, tags=[], attributes={}, strip=True).strip()
 
 
-def verify_ingest_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verifies the Bearer token for ingestion requests."""
-    if not INGEST_API_KEY:
-        # If no key is set, the endpoint is effectively disabled or open depending on policy.
-        # Here we require it to be set and match.
-        raise HTTPException(status_code=500, detail="Security key not configured.")
+def verify_ingest_key(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
+    """
+    Verifies the Bearer token for ingestion requests using constant-time comparison.
 
-    if credentials.credentials != INGEST_API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid or missing API Key.")
+    Args:
+        credentials: The HTTP authorization credentials from the Authorization header.
+
+    Raises:
+        HTTPException 500: If the server does not have INGEST_API_KEY configured.
+        HTTPException 403: If the provided token does not match the configured key.
+
+    Returns:
+        The validated token string.
+    """
+    expected_key = getattr(config, "INGEST_API_KEY", "")
+    if not expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Security key not configured.",
+        )
+
+    # Constant-time comparison to protect against timing attacks
+    if not secrets.compare_digest(credentials.credentials, expected_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing API Key.",
+        )
+
     return credentials.credentials
