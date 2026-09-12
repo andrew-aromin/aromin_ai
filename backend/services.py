@@ -157,7 +157,10 @@ class VectorStoreManager:
                 {"role": "user", "content": user_query},
             ],
             stream=True,
-            options={"num_ctx": 4096}
+            options={
+                "num_ctx": config.NUM_CTX,
+                "num_threads": config.NUM_THREADS,
+            }
         )
 
         async for chunk in response:

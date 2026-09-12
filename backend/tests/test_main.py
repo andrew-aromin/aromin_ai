@@ -96,6 +96,7 @@ def test_ingest_non_pdf(client, monkeypatch):
 def test_ingest_success(mock_ingest, mock_preload, client, monkeypatch):
     monkeypatch.setattr(config, "INGEST_API_KEY", "valid-key")
     mock_ingest.return_value = 5
+    mock_preload.return_value = True
 
     response = client.post(
         "/api/ingest",
@@ -104,6 +105,25 @@ def test_ingest_success(mock_ingest, mock_preload, client, monkeypatch):
     )
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Successfully ingested 5 chunks from resume.pdf"}
+
+
+@patch("main.preload_questions")
+@patch("main.manager.ingest_pdf")
+def test_ingest_triggers_background_preload(mock_ingest, mock_preload, client, monkeypatch):
+    """Verify that ingestion creates a tracked background task for preloading."""
+    monkeypatch.setattr(config, "INGEST_API_KEY", "valid-key")
+    mock_ingest.return_value = 3
+    mock_preload.return_value = True
+
+    from main import _background_tasks
+
+    response = client.post(
+        "/api/ingest",
+        headers={"Authorization": "Bearer valid-key"},
+        files={"file": ("doc.pdf", b"data", "application/pdf")},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    mock_preload.assert_called()
 
 
 @patch("main.manager.ingest_pdf")
@@ -191,7 +211,6 @@ async def test_lifespan_startup_and_shutdown():
 
     mock_app = MagicMock()
     with patch("main.preload_questions", new_callable=AsyncMock) as mock_preload:
-        # Create a mock task that doesn't complete immediately
         async with lifespan(mock_app):
             mock_preload.assert_called_once()
 

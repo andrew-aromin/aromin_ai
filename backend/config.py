@@ -11,11 +11,25 @@ from dotenv import load_dotenv
 # Load variables from .env file if it exists
 load_dotenv()
 
+def _parse_int(env_var: str, default: int = 8000) -> int:
+    """Safely parse an integer environment variable, returning default on failure."""
+    val = os.getenv(env_var)
+    if val is None or not val.strip():
+        return default
+    try:
+        return int(val.strip())
+    except ValueError:
+        return default
+
 # --- Ollama / AI Configuration ---
 OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 DATA_PATH: str = os.getenv("DATA_PATH", "./data/vector_db")
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 LLM_MODEL: str = os.getenv("LLM_MODEL", "gemma3n:e2b")
+
+# Ollama inference options
+NUM_CTX: int = _parse_int("NUM_CTX", 3072)
+NUM_THREADS: int = _parse_int("NUM_THREADS", 4)
 
 # Default system persona prompt
 DEFAULT_SYSTEM_PROMPT: str = os.getenv(
@@ -32,21 +46,11 @@ API_TITLE: str = "Aromin AI"
 API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
 
 
-def _parse_port(env_var: str, default: int = 8000) -> int:
-    val = os.getenv(env_var)
-    if val is None or not val.strip():
-        return default
-    try:
-        return int(val.strip())
-    except ValueError:
-        return default
-
-
-API_PORT: int = _parse_port("API_PORT", 8000)
+API_PORT: int = _parse_int("API_PORT", 8000)
 
 # --- Redis Configuration ---
 REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")
-REDIS_PORT: int = _parse_port("REDIS_PORT", 6379)
+REDIS_PORT: int = _parse_int("REDIS_PORT", 6379)
 
 # --- Security & Auth ---
 INGEST_API_KEY: str = os.getenv("INGEST_API_KEY", "")

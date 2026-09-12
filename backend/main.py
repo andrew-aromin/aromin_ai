@@ -31,16 +31,39 @@ from utils import sanitize_input, verify_ingest_key
 
 logger = logging.getLogger(__name__)
 
+# Strong reference set for fire-and-forget background tasks.
+# Prevents garbage collection from killing tasks before completion.
+# See: https://docs.python.org/3/library/asyncio-task.html#creating-tasks
+_background_tasks: set[asyncio.Task[Any]] = set()
+
+
+def _log_task_exception(task: asyncio.Task[Any]) -> None:
+    """Logs unhandled exceptions from fire-and-forget background tasks."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.error(
+            "Background task %s failed: %s",
+            task.get_name(),
+            exc,
+            exc_info=exc,
+        )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager: starts background preload task on startup."""
     logger.info("Starting background task to preload Redis questions...")
-    preload_task = asyncio.create_task(preload_questions())
+    task = asyncio.create_task(preload_questions())
+    _background_tasks.add(task)
+    task.add_done_callback(_log_task_exception)
+    task.add_done_callback(_background_tasks.discard)
     yield
     # Cancel pending background preload if still running during shutdown
-    if not preload_task.done():
-        preload_task.cancel()
+    for t in list(_background_tasks):
+        if not t.done():
+            t.cancel()
 
 
 # Initialize Rate Limiter
@@ -117,7 +140,10 @@ async def ingest_file(
         sanitized_filename = sanitize_input(file.filename)
 
         logger.info("Document ingested. Triggering background task to update Redis cache...")
-        asyncio.create_task(preload_questions())
+        task = asyncio.create_task(preload_questions())
+        _background_tasks.add(task)
+        task.add_done_callback(_log_task_exception)
+        task.add_done_callback(_background_tasks.discard)
 
         return {"message": f"Successfully ingested {num_chunks} chunks from {sanitized_filename}"}
     except ValueError as ve:
