@@ -202,7 +202,7 @@ def test_chat_streaming_error_handling(mock_chat_stream, mock_get_cached, client
 
     response = client.post("/api/chat", json={"message": "Crash query"})
     assert response.status_code == status.HTTP_200_OK
-    assert "LLM connection failed" in response.text
+    assert "An error occurred while generating the response." in response.text
 
 
 @pytest.mark.asyncio

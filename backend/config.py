@@ -51,6 +51,7 @@ API_PORT: int = _parse_int("API_PORT", 8000)
 # --- Redis Configuration ---
 REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT: int = _parse_int("REDIS_PORT", 6379)
+REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
 
 # --- Security & Auth ---
 INGEST_API_KEY: str = os.getenv("INGEST_API_KEY", "")

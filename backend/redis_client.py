@@ -8,7 +8,7 @@ import logging
 from typing import List, Optional
 
 import redis
-from config import REDIS_HOST, REDIS_PORT
+from config import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ def init_redis(host: Optional[str] = None, port: Optional[int] = None) -> Option
             host=target_host,
             port=target_port,
             db=0,
+            password=REDIS_PASSWORD or None,
             decode_responses=True,
             socket_connect_timeout=2.0,
             socket_timeout=2.0,

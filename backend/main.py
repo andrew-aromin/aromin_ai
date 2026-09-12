@@ -69,7 +69,16 @@ async def lifespan(app: FastAPI):
 # Initialize Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
 
-app: FastAPI = FastAPI(title=API_TITLE, lifespan=lifespan)
+import os
+
+_is_production = os.getenv("ENVIRONMENT", "production") == "production"
+app: FastAPI = FastAPI(
+    title=API_TITLE,
+    lifespan=lifespan,
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -78,8 +87,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -135,6 +144,16 @@ async def ingest_file(
             detail="Only PDF files are supported.",
         )
 
+    # Enforce max file size (10 MB)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File exceeds maximum size of {MAX_FILE_SIZE // (1024*1024)} MB."
+        )
+    await file.seek(0)  # Reset for downstream consumers
+
     try:
         num_chunks: int = manager.ingest_pdf(file)
         sanitized_filename = sanitize_input(file.filename)
@@ -150,7 +169,10 @@ async def ingest_file(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
         logger.error("Error ingesting PDF %s: %s", file.filename, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal error occurred while processing the document.",
+        )
 
 
 @app.post("/api/chat", tags=["Chat"])
@@ -206,7 +228,7 @@ async def chat(request: Request, chat_request: ChatRequest) -> StreamingResponse
 
         except Exception as e:
             logger.error("Streaming error: %s", e)
-            yield format_sse({"error": str(e)})
+            yield format_sse({"error": "An error occurred while generating the response."})
         finally:
             if chunk_task is not None and not chunk_task.done():
                 chunk_task.cancel()

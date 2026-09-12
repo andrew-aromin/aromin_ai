@@ -1,8 +1,10 @@
 #!/bin/bash
 
-# Load environment variables if .env exists
+# Load environment variables safely if .env exists
 if [ -f .env ]; then
-  export $(grep -v '^#' .env | xargs)
+  set -a
+  . .env
+  set +a
 fi
 
 LLM_MODEL=${1:-$LLM_MODEL}
